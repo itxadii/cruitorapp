@@ -1,7 +1,8 @@
 import type { APIGatewayProxyHandler } from 'aws-lambda';
 
 const SERPAPI_KEY = process.env.SERPAPI_KEY!;
-const PROSPEO_API_KEY = process.env.PROSPEO_API_KEY!;
+const SNOV_CLIENT_ID = process.env.SNOV_CLIENT_ID!;
+const SNOV_CLIENT_SECRET = process.env.SNOV_CLIENT_SECRET!;
 const EMAIL_REGEX = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g;
 
 // ─── Step 1: Get company domain ───────────────────────────────────────────────
@@ -31,37 +32,54 @@ async function getCompanyDomain(company: string): Promise<string> {
   return new URL(data.organic_results[0].link).hostname.replace('www.', '');
 }
 
-// ─── Step 2: Prospeo domain search (primary) ──────────────────────────────────
-async function searchProspeo(domain: string): Promise<string[]> {
+// ─── Step 2a: Snov.io get access token ───────────────────────────────────────
+async function getSnovToken(): Promise<string> {
+  const res = await fetch('https://api.snov.io/v1/oauth/access_token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      grant_type: 'client_credentials',
+      client_id: SNOV_CLIENT_ID,
+      client_secret: SNOV_CLIENT_SECRET,
+    }),
+  });
+  const data = await res.json();
+  if (!data.access_token) throw new Error('Failed to get Snov token');
+  return data.access_token;
+}
+
+// ─── Step 2b: Snov.io domain search (primary) ────────────────────────────────
+async function searchSnov(domain: string): Promise<string[]> {
   try {
-    const res = await fetch('https://api.prospeo.io/domain-search', {
+    const token = await getSnovToken();
+
+    const res = await fetch('https://api.snov.io/v1/get-emails-from-domain', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-KEY': PROSPEO_API_KEY,
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        company: domain,
+        access_token: token,
+        domain: domain,
+        type: 'all',
         limit: 10,
       }),
     });
 
     const data = await res.json();
-    console.log('Prospeo response:', JSON.stringify(data));
+    console.log('Snov response:', JSON.stringify(data));
 
-    if (!data.response?.email_list?.length) return [];
+    if (!data.emails?.length) return [];
 
-    return data.response.email_list
-      .filter((e: any) => e.email && e.verification?.status !== 'invalid')
+    return data.emails
+      .filter((e: any) => e.email)
       .map((e: any) => e.email.toLowerCase() as string);
 
   } catch (err) {
-    console.log('Prospeo failed:', err);
+    console.log('Snov failed:', err);
     return [];
   }
 }
 
-// ─── Step 3: Crawler fallback ─────────────────────────────────────────────────
+// ─── Step 3a: Find HR pages via SerpApi (fallback) ───────────────────────────
 async function findHRPages(domain: string): Promise<string[]> {
   const queries = [
     `site:${domain} careers email`,
@@ -88,6 +106,7 @@ async function findHRPages(domain: string): Promise<string[]> {
   return [...urls];
 }
 
+// ─── Step 3b: Crawl and extract emails (fallback) ────────────────────────────
 async function crawlAndExtract(urls: string[], domain: string): Promise<string[]> {
   const allEmails = new Set<string>();
 
@@ -112,7 +131,7 @@ async function crawlAndExtract(urls: string[], domain: string): Promise<string[]
         }
       });
     } catch {
-      // skip
+      // skip failed URLs
     }
   }
 
@@ -180,22 +199,19 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     const domain = await getCompanyDomain(company);
     console.log(`Domain: ${domain}`);
 
-    // Step 2 — try Prospeo first
-    let emails = await searchProspeo(domain);
-    console.log(`Prospeo found: ${emails.length} emails`);
+    // Step 2 — try Snov.io first
+    let emails = await searchSnov(domain);
+    console.log(`Snov found: ${emails.length} emails`);
 
-    // Step 3 — fall back to crawler if Prospeo returns < 3
+    // Step 3 — fall back to crawler if Snov returns < 3
     if (emails.length < 3) {
       console.log('Falling back to crawler...');
       const pages = await findHRPages(domain);
       const crawled = await crawlAndExtract(pages, domain);
       const crawlerEmails = filterHREmails(crawled, domain);
-
-      // Merge both sources, deduplicate
       emails = [...new Set([...emails, ...crawlerEmails])];
+      console.log(`After crawler: ${emails.length} emails`);
     }
-
-    console.log(`Final emails: ${emails.length}`);
 
     return {
       statusCode: 200,
