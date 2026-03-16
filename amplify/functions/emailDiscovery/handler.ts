@@ -1,19 +1,8 @@
 import type { APIGatewayProxyHandler } from 'aws-lambda';
 
 const SERPAPI_KEY = process.env.SERPAPI_KEY!;
-// Stricter regex — no % signs allowed
+const PROSPEO_API_KEY = process.env.PROSPEO_API_KEY!;
 const EMAIL_REGEX = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g;
-
-// After extracting, add this decode + validation step:
-function isValidEmail(email: string): boolean {
-  if (email.includes('%')) return false; // URL encoded garbage
-  if (email.length > 100) return false;  // suspiciously long
-  if (email.startsWith('.') || email.endsWith('.')) return false;
-  const parts = email.split('@');
-  if (parts.length !== 2) return false;
-  if (parts[0].length < 1 || parts[1].length < 3) return false;
-  return true;
-}
 
 // ─── Step 1: Get company domain ───────────────────────────────────────────────
 async function getCompanyDomain(company: string): Promise<string> {
@@ -39,22 +28,47 @@ async function getCompanyDomain(company: string): Promise<string> {
     } catch {}
   }
 
-  const fallback = new URL(data.organic_results[0].link).hostname.replace('www.', '');
-  return fallback;
+  return new URL(data.organic_results[0].link).hostname.replace('www.', '');
 }
 
-// ─── Step 2: Find HR/careers pages ─────────────────────────────────────────
+// ─── Step 2: Prospeo domain search (primary) ──────────────────────────────────
+async function searchProspeo(domain: string): Promise<string[]> {
+  try {
+    const res = await fetch('https://api.prospeo.io/domain-search', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-KEY': PROSPEO_API_KEY,
+      },
+      body: JSON.stringify({
+        company: domain,
+        limit: 10,
+      }),
+    });
+
+    const data = await res.json();
+    console.log('Prospeo response:', JSON.stringify(data));
+
+    if (!data.response?.email_list?.length) return [];
+
+    return data.response.email_list
+      .filter((e: any) => e.email && e.verification?.status !== 'invalid')
+      .map((e: any) => e.email.toLowerCase() as string);
+
+  } catch (err) {
+    console.log('Prospeo failed:', err);
+    return [];
+  }
+}
+
+// ─── Step 3: Crawler fallback ─────────────────────────────────────────────────
 async function findHRPages(domain: string): Promise<string[]> {
   const queries = [
     `site:${domain} careers email`,
     `site:${domain} hr contact`,
   ];
 
-  const commonPaths = [
-    'careers', 'jobs', 'contact', 'about',
-    'about-us', 'contact-us', 'work-with-us', 'recruiting'
-  ];
-
+  const commonPaths = ['careers', 'jobs', 'contact', 'about'];
   const urls = new Set<string>();
 
   for (const q of queries) {
@@ -65,7 +79,7 @@ async function findHRPages(domain: string): Promise<string[]> {
       if (data.organic_results) {
         data.organic_results.forEach((r: any) => urls.add(r.link));
       }
-    } catch (err) {
+    } catch {
       console.log(`Search failed: ${q}`);
     }
   }
@@ -74,7 +88,6 @@ async function findHRPages(domain: string): Promise<string[]> {
   return [...urls];
 }
 
-// ─── Step 3: Crawl and extract ────────────────────────────────────────────────
 async function crawlAndExtract(urls: string[], domain: string): Promise<string[]> {
   const allEmails = new Set<string>();
 
@@ -94,12 +107,10 @@ async function crawlAndExtract(urls: string[], domain: string): Promise<string[]
 
       matches.forEach(email => {
         const clean = email.toLowerCase();
-        // ← Only keep emails from the actual company domain
-        if (clean.includes(domain)) {
+        if (clean.includes(domain) && isValidEmail(clean)) {
           allEmails.add(clean);
         }
       });
-
     } catch {
       // skip
     }
@@ -108,22 +119,32 @@ async function crawlAndExtract(urls: string[], domain: string): Promise<string[]
   return [...allEmails];
 }
 
-// ─── Step 4: Filter HR emails ────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function isValidEmail(email: string): boolean {
+  if (email.includes('%')) return false;
+  if (email.length > 100) return false;
+  if (email.startsWith('.') || email.endsWith('.')) return false;
+  const parts = email.split('@');
+  if (parts.length !== 2) return false;
+  if (parts[0].length < 1 || parts[1].length < 3) return false;
+  return true;
+}
+
 function filterHREmails(emails: string[], domain: string): string[] {
   const hrKeywords = [
     'hr', 'careers', 'jobs', 'recruit', 'hiring', 'talent',
     'people', 'apply', 'work', 'join', 'team',
   ];
 
-  const spamPatterns = ['noreply', 'no-reply', 'support', 'info', 'sales', 'billing'];
+  const spamPatterns = ['noreply', 'no-reply'];
 
-  // Valid emails on company domain only
-  const valid = emails.filter(e => isValidEmail(e) && e.includes(domain));
+  const valid = emails.filter(e =>
+    isValidEmail(e) &&
+    e.includes(domain) &&
+    !spamPatterns.some(p => e.includes(p))
+  );
 
-  // HR emails first
   const hrEmails = valid.filter(e => hrKeywords.some(k => e.includes(k)));
-
-  // Then remaining domain emails as fallback
   const otherEmails = valid.filter(e => !hrEmails.includes(e));
 
   return [...new Set([...hrEmails, ...otherEmails])].slice(0, 10);
@@ -155,17 +176,26 @@ export const handler: APIGatewayProxyHandler = async (event) => {
 
     console.log(`Searching emails for: ${company}`);
 
+    // Step 1 — get domain
     const domain = await getCompanyDomain(company);
     console.log(`Domain: ${domain}`);
 
-    const pages = await findHRPages(domain);
-    console.log(`Pages to crawl: ${pages.length}`);
+    // Step 2 — try Prospeo first
+    let emails = await searchProspeo(domain);
+    console.log(`Prospeo found: ${emails.length} emails`);
 
-    const rawEmails = await crawlAndExtract(pages, domain);
-    console.log(`Raw emails: ${rawEmails.length}`);
+    // Step 3 — fall back to crawler if Prospeo returns < 3
+    if (emails.length < 3) {
+      console.log('Falling back to crawler...');
+      const pages = await findHRPages(domain);
+      const crawled = await crawlAndExtract(pages, domain);
+      const crawlerEmails = filterHREmails(crawled, domain);
 
-    const filteredEmails = filterHREmails(rawEmails, domain);
-    console.log(`Filtered emails: ${filteredEmails.length}`);
+      // Merge both sources, deduplicate
+      emails = [...new Set([...emails, ...crawlerEmails])];
+    }
+
+    console.log(`Final emails: ${emails.length}`);
 
     return {
       statusCode: 200,
@@ -173,10 +203,11 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       body: JSON.stringify({
         company,
         domain,
-        emails: filteredEmails,
-        total: filteredEmails.length,
+        emails: emails.slice(0, 10),
+        total: Math.min(emails.length, 10),
       }),
     };
+
   } catch (err: any) {
     console.error('Lambda error:', err);
     return {
