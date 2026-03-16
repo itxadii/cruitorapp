@@ -31,7 +31,7 @@ async function getCompanyDomain(company: string): Promise<string> {
   return fallback;
 }
 
-// ─── Step 2: Find HR/careers pages ───────────────────────────────────────────
+// ─── Step 2: Find HR/careers pages ─────────────────────────────────────────
 async function findHRPages(domain: string): Promise<string[]> {
   const queries = [
     `site:${domain} careers email`,
