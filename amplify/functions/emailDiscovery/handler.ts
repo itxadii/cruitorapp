@@ -1,7 +1,19 @@
 import type { APIGatewayProxyHandler } from 'aws-lambda';
 
 const SERPAPI_KEY = process.env.SERPAPI_KEY!;
+// Stricter regex — no % signs allowed
 const EMAIL_REGEX = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g;
+
+// After extracting, add this decode + validation step:
+function isValidEmail(email: string): boolean {
+  if (email.includes('%')) return false; // URL encoded garbage
+  if (email.length > 100) return false;  // suspiciously long
+  if (email.startsWith('.') || email.endsWith('.')) return false;
+  const parts = email.split('@');
+  if (parts.length !== 2) return false;
+  if (parts[0].length < 1 || parts[1].length < 3) return false;
+  return true;
+}
 
 // ─── Step 1: Get company domain ───────────────────────────────────────────────
 async function getCompanyDomain(company: string): Promise<string> {
@@ -36,15 +48,11 @@ async function findHRPages(domain: string): Promise<string[]> {
   const queries = [
     `site:${domain} careers email`,
     `site:${domain} hr contact`,
-    `site:${domain} jobs hiring`,
-    `site:${domain} recruiting`,
-    `"${domain}" hr email contact`,
   ];
 
   const commonPaths = [
-    'careers', 'jobs', 'contact', 'about', 'hire',
-    'about-us', 'contact-us', 'work-with-us', 'join-us',
-    'team', 'company', 'recruiting',
+    'careers', 'jobs', 'contact', 'about',
+    'about-us', 'contact-us', 'work-with-us', 'recruiting'
   ];
 
   const urls = new Set<string>();
@@ -66,8 +74,8 @@ async function findHRPages(domain: string): Promise<string[]> {
   return [...urls];
 }
 
-// ─── Step 3: Crawl and extract emails ────────────────────────────────────────
-async function crawlAndExtract(urls: string[]): Promise<string[]> {
+// ─── Step 3: Crawl and extract ────────────────────────────────────────────────
+async function crawlAndExtract(urls: string[], domain: string): Promise<string[]> {
   const allEmails = new Set<string>();
 
   for (const url of urls) {
@@ -76,16 +84,24 @@ async function crawlAndExtract(urls: string[]): Promise<string[]> {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
         },
-        signal: AbortSignal.timeout(5000),
+        signal: AbortSignal.timeout(3000),
       });
 
       if (!res.ok) continue;
 
       const html = await res.text();
       const matches = html.match(EMAIL_REGEX) || [];
-      matches.forEach(email => allEmails.add(email.toLowerCase()));
+
+      matches.forEach(email => {
+        const clean = email.toLowerCase();
+        // ← Only keep emails from the actual company domain
+        if (clean.includes(domain)) {
+          allEmails.add(clean);
+        }
+      });
+
     } catch {
-      // Skip failed URLs silently
+      // skip
     }
   }
 
@@ -96,31 +112,21 @@ async function crawlAndExtract(urls: string[]): Promise<string[]> {
 function filterHREmails(emails: string[], domain: string): string[] {
   const hrKeywords = [
     'hr', 'careers', 'jobs', 'recruit', 'hiring', 'talent',
-    'people', 'apply', 'work', 'join', 'team', 'staffing',
-    'employment', 'humanresource', 'resume', 'cv',
+    'people', 'apply', 'work', 'join', 'team',
   ];
 
-  const spamPatterns = [
-    'noreply', 'no-reply', 'example.com', 'test.com',
-    'sentry.io', 'w3.org', 'schema.org', 'googleapis.com',
-    '.png', '.jpg', '.svg',
-  ];
+  const spamPatterns = ['noreply', 'no-reply', 'support', 'info', 'sales', 'billing'];
 
-  const cleaned = emails.filter(email => {
-    if (spamPatterns.some(p => email.includes(p))) return false;
-    if (!email.includes('@')) return false;
-    return true;
-  });
+  // Valid emails on company domain only
+  const valid = emails.filter(e => isValidEmail(e) && e.includes(domain));
 
-  const hrEmails = cleaned.filter(email =>
-    hrKeywords.some(keyword => email.includes(keyword))
-  );
+  // HR emails first
+  const hrEmails = valid.filter(e => hrKeywords.some(k => e.includes(k)));
 
-  const domainEmails = cleaned.filter(email =>
-    email.includes(domain) && !hrEmails.includes(email)
-  );
+  // Then remaining domain emails as fallback
+  const otherEmails = valid.filter(e => !hrEmails.includes(e));
 
-  return [...new Set([...hrEmails, ...domainEmails])].slice(0, 10);
+  return [...new Set([...hrEmails, ...otherEmails])].slice(0, 10);
 }
 
 // ─── Main Handler ─────────────────────────────────────────────────────────────
@@ -155,7 +161,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     const pages = await findHRPages(domain);
     console.log(`Pages to crawl: ${pages.length}`);
 
-    const rawEmails = await crawlAndExtract(pages);
+    const rawEmails = await crawlAndExtract(pages, domain);
     console.log(`Raw emails: ${rawEmails.length}`);
 
     const filteredEmails = filterHREmails(rawEmails, domain);
