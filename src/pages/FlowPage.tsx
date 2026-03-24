@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { useAuthenticator } from '@aws-amplify/ui-react';
 
 export default function FlowPage() {
-  const { user, signOut } = useAuthenticator((context) => [context.user]);
+  const { signOut } = useAuthenticator((context) => [context.user]);
   const [company, setCompany] = useState('');
   const [isSearching, setIsSearching] = useState(false);
 
