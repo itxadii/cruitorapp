@@ -1,8 +1,6 @@
 import type { APIGatewayProxyHandler } from 'aws-lambda';
 
 const SERPAPI_KEY = process.env.SERPAPI_KEY!;
-const SNOV_CLIENT_ID = process.env.SNOV_CLIENT_ID!;
-const SNOV_CLIENT_SECRET = process.env.SNOV_CLIENT_SECRET!;
 const EMAIL_REGEX = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g;
 
 // ─── Step 1: Get company domain ───────────────────────────────────────────────
@@ -32,61 +30,14 @@ async function getCompanyDomain(company: string): Promise<string> {
   return new URL(data.organic_results[0].link).hostname.replace('www.', '');
 }
 
-// ─── Step 2a: Snov.io get access token ───────────────────────────────────────
-async function getSnovToken(): Promise<string> {
-  const res = await fetch('https://api.snov.io/v1/oauth/access_token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      grant_type: 'client_credentials',
-      client_id: SNOV_CLIENT_ID,
-      client_secret: SNOV_CLIENT_SECRET,
-    }),
-  });
-  const data = await res.json();
-  if (!data.access_token) throw new Error('Failed to get Snov token');
-  return data.access_token;
-}
-
-// ─── Step 2b: Snov.io domain search (primary) ────────────────────────────────
-async function searchSnov(domain: string): Promise<string[]> {
-  try {
-    const token = await getSnovToken();
-
-    const res = await fetch('https://api.snov.io/v1/get-emails-from-domain', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        access_token: token,
-        domain: domain,
-        type: 'all',
-        limit: 10,
-      }),
-    });
-
-    const data = await res.json();
-    console.log('Snov response:', JSON.stringify(data));
-
-    if (!data.emails?.length) return [];
-
-    return data.emails
-      .filter((e: any) => e.email)
-      .map((e: any) => e.email.toLowerCase() as string);
-
-  } catch (err) {
-    console.log('Snov failed:', err);
-    return [];
-  }
-}
-
-// ─── Step 3a: Find HR pages via SerpApi (fallback) ───────────────────────────
-async function findHRPages(domain: string): Promise<string[]> {
+// ─── Step 2: Smart targeted search ───────────────────────────────────────────
+async function findTargetedPages(company: string, domain: string): Promise<string[]> {
+  // These specific queries find pages most likely to have real emails
   const queries = [
-    `site:${domain} careers email`,
-    `site:${domain} hr contact`,
+    `"${domain}" "hr@" OR "careers@" OR "jobs@" OR "recruit@" OR "talent@"`,
+    `site:${domain} "email" "hr" OR "careers" OR "recruiting"`,
   ];
 
-  const commonPaths = ['careers', 'jobs', 'contact', 'about'];
   const urls = new Set<string>();
 
   for (const q of queries) {
@@ -94,23 +45,47 @@ async function findHRPages(domain: string): Promise<string[]> {
       const url = `https://serpapi.com/search.json?engine=google&q=${encodeURIComponent(q)}&api_key=${SERPAPI_KEY}&num=5`;
       const res = await fetch(url);
       const data = await res.json();
+
       if (data.organic_results) {
-        data.organic_results.forEach((r: any) => urls.add(r.link));
+        data.organic_results.forEach((r: any) => {
+          urls.add(r.link);
+          // Also extract emails directly from snippets
+        });
       }
+
+      // ← Extract emails directly from search snippets (no crawling needed!)
+      if (data.organic_results) {
+        data.organic_results.forEach((r: any) => {
+          const text = `${r.snippet || ''} ${r.title || ''}`;
+          const matches = text.match(EMAIL_REGEX) || [];
+          matches.forEach(e => urls.add(`__email__${e.toLowerCase()}`));
+        });
+      }
+
     } catch {
       console.log(`Search failed: ${q}`);
     }
   }
 
-  commonPaths.forEach(path => urls.add(`https://${domain}/${path}`));
   return [...urls];
 }
 
-// ─── Step 3b: Crawl and extract emails (fallback) ────────────────────────────
+// ─── Step 3: Crawl pages ──────────────────────────────────────────────────────
 async function crawlAndExtract(urls: string[], domain: string): Promise<string[]> {
   const allEmails = new Set<string>();
 
-  for (const url of urls) {
+  // First extract pre-found emails from search snippets
+  const pageUrls = urls.filter(u => {
+    if (u.startsWith('__email__')) {
+      const email = u.replace('__email__', '');
+      if (isValidEmail(email)) allEmails.add(email);
+      return false;
+    }
+    return true;
+  });
+
+  // Then crawl actual pages
+  const crawlPromises = pageUrls.slice(0, 8).map(async (url) => {
     try {
       const res = await fetch(url, {
         headers: {
@@ -119,23 +94,75 @@ async function crawlAndExtract(urls: string[], domain: string): Promise<string[]
         signal: AbortSignal.timeout(3000),
       });
 
-      if (!res.ok) continue;
+      if (!res.ok) return;
 
       const html = await res.text();
       const matches = html.match(EMAIL_REGEX) || [];
 
       matches.forEach(email => {
         const clean = email.toLowerCase();
-        if (clean.includes(domain) && isValidEmail(clean)) {
+        if (clean.endsWith(`@${domain}`) && isValidEmail(clean)) {
           allEmails.add(clean);
         }
       });
     } catch {
-      // skip failed URLs
+      // skip
+    }
+  });
+
+  // Run all crawls in parallel
+  await Promise.all(crawlPromises);
+
+  return [...allEmails];
+}
+
+// ─── Step 4: Also search for emails in SerpApi snippets directly ──────────────
+async function searchEmailsInSnippets(company: string, domain: string): Promise<string[]> {
+  const queries = [
+    `${company} careers email address contact hr`,
+  ];
+
+  const emails = new Set<string>();
+
+  for (const q of queries) {
+    try {
+      const url = `https://serpapi.com/search.json?engine=google&q=${encodeURIComponent(q)}&api_key=${SERPAPI_KEY}&num=10`;
+      const res = await fetch(url);
+      const data = await res.json();
+
+      if (data.organic_results) {
+        data.organic_results.forEach((r: any) => {
+          const text = `${r.snippet || ''} ${r.title || ''} ${r.displayed_link || ''}`;
+          const matches = text.match(EMAIL_REGEX) || [];
+          matches.forEach( (e: string) => {
+            const clean = e.toLowerCase();
+            if (clean.includes(domain) && isValidEmail(clean)) {
+              emails.add(clean);
+            }
+          });
+        });
+      }
+
+      // Check related questions too
+      if (data.related_questions) {
+        data.related_questions.forEach((q: any) => {
+          const text = (q.list || []).join(' ') + (q.snippet || '');
+          const matches = text.match(EMAIL_REGEX) || [];
+          matches.forEach( (e: string) => {
+            const clean = e.toLowerCase();
+            if (clean.includes(domain) && isValidEmail(clean)) {
+              emails.add(clean);
+            }
+          });
+        });
+      }
+
+    } catch {
+      console.log(`Snippet search failed: ${q}`);
     }
   }
 
-  return [...allEmails];
+  return [...emails];
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -149,13 +176,16 @@ function isValidEmail(email: string): boolean {
   return true;
 }
 
-function filterHREmails(emails: string[], domain: string): string[] {
+function filterAndRankEmails(emails: string[], domain: string): string[] {
   const hrKeywords = [
     'hr', 'careers', 'jobs', 'recruit', 'hiring', 'talent',
-    'people', 'apply', 'work', 'join', 'team',
+    'people', 'apply', 'join', 'team', 'staffing', 'workforce',
   ];
 
-  const spamPatterns = ['noreply', 'no-reply'];
+  const spamPatterns = [
+    'noreply', 'no-reply', 'donotreply',
+    'bounce', 'mailer', 'daemon',
+  ];
 
   const valid = emails.filter(e =>
     isValidEmail(e) &&
@@ -163,6 +193,7 @@ function filterHREmails(emails: string[], domain: string): string[] {
     !spamPatterns.some(p => e.includes(p))
   );
 
+  // HR emails first, then everything else
   const hrEmails = valid.filter(e => hrKeywords.some(k => e.includes(k)));
   const otherEmails = valid.filter(e => !hrEmails.includes(e));
 
@@ -199,19 +230,25 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     const domain = await getCompanyDomain(company);
     console.log(`Domain: ${domain}`);
 
-    // Step 2 — try Snov.io first
-    let emails = await searchSnov(domain);
-    console.log(`Snov found: ${emails.length} emails`);
+    // Step 2 — run all searches in parallel
+    const [targetedUrls, snippetEmails] = await Promise.all([
+      findTargetedPages(company, domain),
+      searchEmailsInSnippets(company, domain),
+    ]);
 
-    // Step 3 — fall back to crawler if Snov returns < 3
-    if (emails.length < 3) {
-      console.log('Falling back to crawler...');
-      const pages = await findHRPages(domain);
-      const crawled = await crawlAndExtract(pages, domain);
-      const crawlerEmails = filterHREmails(crawled, domain);
-      emails = [...new Set([...emails, ...crawlerEmails])];
-      console.log(`After crawler: ${emails.length} emails`);
-    }
+    console.log(`Targeted URLs: ${targetedUrls.length}, Snippet emails: ${snippetEmails.length}`);
+
+    // Step 3 — crawl pages in parallel
+    const crawledEmails = await crawlAndExtract(targetedUrls, domain);
+    console.log(`Crawled emails: ${crawledEmails.length}`);
+
+    // Step 4 — merge all sources
+    const allEmails = [...new Set([...snippetEmails, ...crawledEmails])];
+    console.log(`Total before filter: ${allEmails.length}`);
+
+    // Step 5 — filter and rank
+    const finalEmails = filterAndRankEmails(allEmails, domain);
+    console.log(`Final emails: ${finalEmails.length}`);
 
     return {
       statusCode: 200,
@@ -219,8 +256,8 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       body: JSON.stringify({
         company,
         domain,
-        emails: emails.slice(0, 10),
-        total: Math.min(emails.length, 10),
+        emails: finalEmails,
+        total: finalEmails.length,
       }),
     };
 
