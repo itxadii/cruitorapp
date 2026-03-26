@@ -40,8 +40,8 @@ const Navbar = () => {
 
               {authStatus === 'authenticated' ? (
                 <div className="flex items-center gap-4">
-                  <button onClick={() => navigate('/app')} className="text-sm font-bold text-[#9B8EC7] hover:text-[#BDA6CE]">Dashboard</button>
-                  <button onClick={signOut} className="bg-[#4A4458] text-white px-5 py-2 rounded-full text-sm font-bold hover:bg-[#9B8EC7] transition-all shadow-md">Logout</button>
+                  <button onClick={() => navigate('/app')} className="cursor-pointer text-sm font-bold text-[#9B8EC7] hover:text-[#BDA6CE]">Dashboard</button>
+                  <button onClick={signOut} className="cursor-pointer bg-[#4A4458] text-white px-5 py-2 rounded-full text-sm font-bold hover:bg-[#9B8EC7] transition-all shadow-md">Logout</button>
                 </div>
               ) : (
                 <div className="flex items-center gap-4">

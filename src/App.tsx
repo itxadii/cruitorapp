@@ -13,6 +13,7 @@ import { Login } from './pages/Login';
 import { Signup } from './pages/Signup';
 import { NotFound } from './pages/NotFound';
 import FlowPage from './pages/FlowPage';
+import AuthCallback from './pages/AuthCallback'; // Make sure you created this file!
 
 function AppRoutes() {
   const location = useLocation();
@@ -20,12 +21,23 @@ function AppRoutes() {
   return (
     <AnimatePresence mode="wait">
       <Routes location={location} key={location.pathname}>
-        {/* PROTECTED ROUTE: Only accessible after login */}
+        
+        {/* PROTECTED ROUTES: Only accessible after login */}
         <Route 
           path="/app" 
           element={
             <Authenticator>
                 <FlowPage/>
+            </Authenticator>
+          } 
+        />
+        
+        {/* NEW ROUTE: Where Google sends the user back after consent */}
+        <Route 
+          path="/auth/callback" 
+          element={
+            <Authenticator>
+                <AuthCallback/>
             </Authenticator>
           } 
         />
@@ -45,8 +57,8 @@ function AppRoutes() {
 function App() {
   return (
     <BrowserRouter>
-      {/* Note: You might want to wrap the whole App in <Authenticator.Provider> 
-          if the Navbar needs to know the auth state globally.
+      {/* Note: Wrapped the whole App in <Authenticator.Provider> 
+          so the Navbar knows the auth state globally.
       */}
       <Authenticator.Provider>
         <div className="flex min-h-screen flex-col bg-[#B4D3D9]">
