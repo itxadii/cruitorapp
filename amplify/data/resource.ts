@@ -10,6 +10,8 @@ const schema = a.schema({
     
     // Quick flag so the frontend knows to hide the "Connect Gmail" button
     isConnected: a.boolean().default(false),
+    firstName: a.string(),   // ADD
+    lastName: a.string(),   // ADD
   })
   .authorization(allow => [
     // CRITICAL SECURITY: This ensures a user can ONLY read/write their own row.

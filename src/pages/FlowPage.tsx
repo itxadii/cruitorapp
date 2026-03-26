@@ -12,20 +12,85 @@ const client = generateClient<Schema>();
 const TEMPLATES = [
   {
     id: 'general',
-    name: 'Standard Outreach',
-    subject: (comp: string) => `Inquiry: Potential Openings at ${comp}`,
-    body: (comp: string) => `Hi HR Team at ${comp},\n\nI’ve been following your recent growth and would love to discuss how my background in software development could contribute to your mission. I've attached my resume for your review.\n\nBest regards,\n[My Name]`
+    name: 'Cold Outreach',
+    subject: (comp: string) => `Exploring Opportunities at ${comp}`,
+    body: (comp: string, name: string = '[Your Name]') => `Hi,
+
+I came across ${comp} and was genuinely impressed by the work your team is doing. I'm a software engineer with hands-on experience building and shipping production systems, and I'd love to explore if there's a fit.
+
+I've attached my resume for your reference. Even if there's no immediate opening, I'd appreciate being kept in mind for future roles.
+
+Thank you for your time.
+
+Best regards,
+${name}`
   },
   {
-    id: 'referral',
-    name: 'Referral Request',
-    subject: (comp: string) => `Connect: Software Engineering at ${comp}`,
-    body: (comp: string) => `Hello,\n\nI am reaching out to express my strong interest in ${comp}. I’ve spent the last few months building Cruitor.com and I'm eager to bring that same technical passion to your team...`
+    id: 'specific_role',
+    name: 'Role-Specific',
+    subject: (comp: string) => `Application: Software Engineer at ${comp}`,
+    body: (comp: string, name: string = '[Your Name]') => `Hi,
+
+I'm reaching out regarding engineering opportunities at ${comp}. I'm a developer with experience across the full stack — from building REST APIs and cloud infrastructure to shipping user-facing products.
+
+I thrive in fast-moving environments where ownership and impact matter. I'd welcome the chance to learn more about your team's current needs.
+
+My resume is attached. Happy to connect at your convenience.
+
+Best,
+${name}`
+  },
+  {
+    id: 'startup',
+    name: 'Startup / Hustle',
+    subject: (comp: string) => `Engineer Who Ships — Interested in ${comp}`,
+    body: (comp: string, name: string = '[Your Name]') => `Hi ${comp} Team,
+
+I build things and ship them. I've taken projects from zero to production — handling architecture decisions, debugging production fires, and iterating fast based on real feedback.
+
+I'm not looking for a job description to fit into. I'm looking for a team where I can contribute meaningfully from day one. ${comp} feels like that place.
+
+Resume attached. Would love a quick chat if you're open to it.
+
+Thanks,
+${name}`
+  },
+  {
+    id: 'fresher',
+    name: 'Fresher / Entry Level',
+    subject: (comp: string) => `Fresher Engineer — Keen to Grow with ${comp}`,
+    body: (comp: string, name: string = '[Your Name]') => `Hi,
+
+I'm a recent Computer Science graduate actively looking for my first professional engineering role. While I'm early in my career, I've spent the past year building real projects — working with cloud infrastructure, APIs, and modern web stacks outside of coursework.
+
+I'm a fast learner who takes ownership seriously, and I'm genuinely excited about the work ${comp} does.
+
+I've attached my resume. I'd be grateful for any opportunity to be considered, even for internship or junior positions.
+
+Thank you,
+${name}`
+  },
+  {
+    id: 'follow_up',
+    name: 'Follow-Up',
+    subject: (comp: string) => `Following Up — Interest in ${comp}`,
+    body: (comp: string, name: string = '[Your Name]') => `Hi,
+
+I wanted to follow up on my earlier message regarding opportunities at ${comp}. I understand you receive a high volume of outreach, so I'll keep this brief.
+
+I remain very interested in joining your team and am confident I can add value quickly. My resume is attached again for easy reference.
+
+If there's a better time or person to reach out to, I'm happy to redirect.
+
+Thanks again for your time.
+
+Best,
+${name}`
   }
 ];
 
 export default function FlowPage() {
-  const { signOut } = useAuthenticator((context) => [context.user]);
+  const { } = useAuthenticator((context) => [context.user]);
   
   const [company, setCompany] = useState('');
   const [emails, setEmails] = useState<string[]>([]);
@@ -41,6 +106,8 @@ export default function FlowPage() {
   const [customBody, setCustomBody] = useState('');
   const [resume, setResume] = useState<File | null>(null);
   const [isBulkSending, setIsBulkSending] = useState(false);
+  const [sentEmails, setSentEmails] = useState<Set<string>>(new Set());
+  const [userName, setUserName] = useState('');
 
   // Helper: Convert File to Base64
   const readFileAsBase64 = (file: File): Promise<string> => {
@@ -56,16 +123,21 @@ export default function FlowPage() {
   };
 
   useEffect(() => {
+    const name = userName || '[Your Name]';
     setCustomSubject(selectedTemplate.subject(company || '[Company]'));
-    setCustomBody(selectedTemplate.body(company || '[Company]'));
-  }, [selectedTemplate, company]);
+    setCustomBody(selectedTemplate.body(company || '[Company]').replace(/\[Your Name\]/g, name));
+  }, [selectedTemplate, company, userName]);
 
   useEffect(() => {
     async function checkGmailConnection() {
       try {
         const { data: credentials } = await client.models.UserCredentials.list({ authMode: 'userPool' });
-        const hasConnectedAccount = credentials.some(cred => cred?.isConnected);
-        if (hasConnectedAccount) setIsGmailConnected(true);
+        const connected = credentials.find(cred => cred?.isConnected);
+        if (connected) {
+          setIsGmailConnected(true);
+          const fullName = [connected.firstName, connected.lastName].filter(Boolean).join(' ');
+          setUserName(fullName || '');
+        }
       } catch (error) { console.error(error); } finally { setIsDbLoading(false); }
     }
     checkGmailConnection();
@@ -111,6 +183,7 @@ export default function FlowPage() {
       });
       if (!response.ok) throw new Error();
       alert(`Sent to ${targetEmail}!`);
+      setSentEmails(prev => new Set(prev).add(targetEmail));
     } catch (error) { alert("Failed to send email."); } 
     finally { setSendingTo(null); }
   };
@@ -179,7 +252,7 @@ export default function FlowPage() {
                 <p className="text-xs text-[#4A4458]/70">Connect Gmail to send directly from this dashboard.</p>
               </div>
             </div>
-            <button onClick={handleConnectGmail} className="px-6 py-2 bg-[#9B8EC7] text-white rounded-xl font-bold text-sm shadow-md hover:bg-[#BDA6CE] transition-all">
+            <button onClick={handleConnectGmail} className="cursor-pointer px-6 py-2 bg-[#9B8EC7] text-white rounded-xl font-bold text-sm shadow-md hover:bg-[#BDA6CE] transition-all">
               Connect Gmail
             </button>
           </motion.div>
@@ -191,11 +264,11 @@ export default function FlowPage() {
               <input 
                 value={company} 
                 onChange={(e) => setCompany(e.target.value)}
-                placeholder="Target Company Name (e.g. JP Morgan)"
+                placeholder="Target Company Name (e.g. Samsung)"
                 className="flex-1 bg-[#F2EAE0]/40 border-2 border-transparent rounded-2xl px-6 py-4 outline-none focus:border-[#9B8EC7] transition-all font-medium text-[#4A4458]"
               />
-              <button disabled={isSearching} className="bg-[#9B8EC7] text-white px-8 py-4 rounded-2xl font-bold hover:bg-[#8e3afc] transition-all disabled:opacity-50">
-                {isSearching ? 'Scouting...' : 'Find HR'}
+              <button disabled={isSearching} className="cursor-pointer bg-[#9B8EC7] text-white px-8 py-4 rounded-2xl font-bold hover:bg-[#8e3afc] transition-all disabled:opacity-50">
+                {isSearching ? 'Scouting...' : 'Find Emails'}
               </button>
             </form>
 
@@ -214,21 +287,27 @@ export default function FlowPage() {
                         </button>
                         
                         {isGmailConnected ? (
-                          <button 
-                            onClick={() => handleSendEmail(email)}
-                            disabled={sendingTo === email}
-                            className="flex items-center gap-2 bg-[#9B8EC7] text-white px-4 py-2 rounded-xl text-sm font-bold shadow-sm hover:bg-[#8A7DB6] transition-all disabled:opacity-70"
-                          >
-                            {sendingTo === email ? (
-                              <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: "linear" }}>
-                                <Zap size={16} />
-                              </motion.div>
-                            ) : (
-                              <Send size={16} /> 
-                            )}
-                            {sendingTo === email ? 'Sending...' : 'Send Now'}
-                          </button>
-                        ) : (
+                            <button 
+                              onClick={() => handleSendEmail(email)}
+                              disabled={sendingTo === email || sentEmails.has(email)}
+                              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold shadow-sm transition-all disabled:opacity-70
+                                ${sentEmails.has(email) 
+                                  ? 'bg-green-100 text-green-600 cursor-default' 
+                                  : 'bg-[#9B8EC7] text-white hover:bg-[#8A7DB6]'
+                                }`}
+                            >
+                              {sendingTo === email ? (
+                                <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: "linear" }}>
+                                  <Zap size={16} />
+                                </motion.div>
+                              ) : sentEmails.has(email) ? (
+                                <CheckCircle2 size={16} />
+                              ) : (
+                                <Send size={16} />
+                              )}
+                              {sendingTo === email ? 'Sending...' : sentEmails.has(email) ? 'Sent' : 'Send Now'}
+                            </button>
+                          ) :  (
                           <button onClick={() => openMailClient(email)} className="bg-[#B4D3D9]/40 text-[#4A4458] p-2.5 rounded-xl hover:bg-[#B4D3D9] transition-all shadow-sm flex items-center gap-2">
                             <ExternalLink size={18} />
                           </button>
@@ -251,7 +330,7 @@ export default function FlowPage() {
               <h3 className="text-[#4A4458] font-black uppercase text-xs tracking-widest px-2 mb-3">Base Template</h3>
               <div className="flex gap-2 overflow-x-auto pb-2">
                 {TEMPLATES.map((t) => (
-                  <button key={t.id} onClick={() => setSelectedTemplate(t)} className={`flex-shrink-0 px-4 py-2 rounded-xl border-2 transition-all text-sm font-bold ${selectedTemplate.id === t.id ? 'bg-white border-[#9B8EC7] text-[#9B8EC7]' : 'bg-white/40 border-transparent text-[#4A4458]/60 hover:bg-white/60'}`}>
+                  <button key={t.id} onClick={() => setSelectedTemplate(t)} className={`cursor-pointer flex-shrink-0 px-4 py-2 rounded-xl border-2 transition-all text-sm font-bold ${selectedTemplate.id === t.id ? 'bg-white border-[#9B8EC7] text-[#9B8EC7]' : 'bg-white/40 border-transparent text-[#4A4458]/60 hover:bg-white/60'}`}>
                     {t.name}
                   </button>
                 ))}
@@ -291,7 +370,7 @@ export default function FlowPage() {
                 <button 
                   onClick={handleBulkSend}
                   disabled={isBulkSending}
-                  className="w-full py-4 mt-2 bg-gradient-to-r from-[#9B8EC7] to-[#8A7DB6] text-white rounded-xl font-black shadow-lg shadow-[#9B8EC7]/20 hover:opacity-90 transition-all flex items-center justify-center gap-2 disabled:opacity-60"
+                  className="cursor-pointer w-full py-4 mt-2 bg-gradient-to-r from-[#9B8EC7] to-[#8A7DB6] text-white rounded-xl font-black shadow-lg shadow-[#9B8EC7]/20 hover:opacity-90 transition-all flex items-center justify-center gap-2 disabled:opacity-60"
                 >
                   {isBulkSending ? (
                     <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: "linear" }}>

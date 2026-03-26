@@ -78,6 +78,8 @@ export const handler: APIGatewayProxyHandler = async (event) => {
           id: userId,          
           owner: userId,       
           __typename: 'UserCredentials', // <-- CRITICAL FIX: AppSync needs this!
+          firstName: profileData.given_name || '',   // ADD
+     lastName: profileData.family_name || '', 
           gmailAddress: profileData.email, 
           refreshToken: tokenData.refresh_token,
           isConnected: true,
