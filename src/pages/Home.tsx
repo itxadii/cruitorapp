@@ -15,12 +15,12 @@ export function Home() {
         >
           {/* Main Headline: Roboto Flex */}
           <h1 className="text-5xl md:text-7xl font-roboto font-black tracking-tight text-[#2D2D2D] mb-6 leading-[1.1]">
-            Stop Searching for <span className="text-[#8e3afc] font-bitcount">HR Emails</span> Manually.
+            Get Interviews Faster — Instantly Find <span className="text-[#8e3afc] font-bitcount">Company Emails</span> & Send Outreach in 1 Click
           </h1>
           
           {/* Description: Noto Serif */}
           <p className="text-lg md:text-xl font-noto text-[#4A4A4A]/90 mb-10 max-w-2xl mx-auto leading-relaxed">
-            Cruitor automates the outreach process. Find HR contacts for any company and send your resume in seconds using your own Gmail API integration.
+            Cruitor automates the outreach process. Find HR contacts for any company and send your resume in seconds using your own Gmail.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center font-roboto">
@@ -28,7 +28,7 @@ export function Home() {
               to="/signup" 
               className="px-10 py-4 bg-[#8e3afc] text-white rounded-2xl font-bold text-lg shadow-xl shadow-[#9B8EC7]/20 hover:bg-[#7a2edb] transition-all"
             >
-              Start Applying Now
+             Send Your First Outreach Email
             </Link>
             
             <Link 
