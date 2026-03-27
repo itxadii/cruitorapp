@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthenticator } from '@aws-amplify/ui-react';
 import { generateClient } from 'aws-amplify/data';
-import { getCurrentUser } from 'aws-amplify/auth'; // FIXED: Added missing import
-import { Copy, Mail, Zap, CheckCircle2, Send, FileText, ExternalLink, Paperclip } from 'lucide-react';
+import { getCurrentUser } from 'aws-amplify/auth';
+import { Copy, Mail, LoaderCircle, CheckCircle2, Send, FileText, ExternalLink, Search, UploadCloud } from 'lucide-react';
 import { searchCompanyEmails } from '../api/searchApi'; 
 import type { Schema } from '../../amplify/data/resource'; 
 
@@ -42,7 +42,7 @@ ${name}`
   },
   {
     id: 'startup',
-    name: 'Startup / Hustle',
+    name: 'Startup',
     subject: (comp: string) => `Engineer Who Ships — Interested in ${comp}`,
     body: (comp: string, name: string = '[Your Name]') => `Hi ${comp} Team,
 
@@ -57,7 +57,7 @@ ${name}`
   },
   {
     id: 'fresher',
-    name: 'Fresher / Entry Level',
+    name: 'Fresher',
     subject: (comp: string) => `Fresher Engineer — Keen to Grow with ${comp}`,
     body: (comp: string, name: string = '[Your Name]') => `Hi,
 
@@ -109,7 +109,6 @@ export default function FlowPage() {
   const [sentEmails, setSentEmails] = useState<Set<string>>(new Set());
   const [userName, setUserName] = useState('');
 
-  // Helper: Convert File to Base64
   const readFileAsBase64 = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -182,7 +181,6 @@ export default function FlowPage() {
         }),
       });
       if (!response.ok) throw new Error();
-      alert(`Sent to ${targetEmail}!`);
       setSentEmails(prev => new Set(prev).add(targetEmail));
     } catch (error) { alert("Failed to send email."); } 
     finally { setSendingTo(null); }
@@ -213,7 +211,7 @@ export default function FlowPage() {
         }),
       });
       if (!response.ok) throw new Error();
-      alert(`Campaign started! Sent to ${emails.length} contacts.`);
+      emails.forEach(email => setSentEmails(prev => new Set(prev).add(email)));
     } catch (error) { alert("Error sending campaign."); } 
     finally { setIsBulkSending(false); }
   };
@@ -223,12 +221,11 @@ export default function FlowPage() {
       setResume(e.target.files[0]);
     }
   };
+
   const handleConnectGmail = () => {
     const clientId = '266505653498-lrvoud93881fotn8h50aijglgec85i06.apps.googleusercontent.com'; 
     const redirectUri = `${window.location.origin}/auth/callback`; 
     const scope = 'https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/userinfo.email';
-    
-    // ADDED: &prompt=consent forces Google to give us a refresh_token every time
     window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}&access_type=offline&prompt=consent`;
   };
 
@@ -240,75 +237,100 @@ export default function FlowPage() {
   };
 
   return (
-    <div className="min-h-screen pt-32 pb-16 px-4 font-roboto">
-      <div className="max-w-6xl mx-auto">
+    <div className="min-h-screen pt-28 pb-16 px-6 relative z-10">
+      <div className="max-w-7xl mx-auto">
         
+        {/* --- Gmail Connect Banner --- */}
         {!isDbLoading && !isGmailConnected && (
-          <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="mb-6 px-6 py-4 bg-white/40 backdrop-blur-md border border-[#B4D3D9] rounded-2xl flex items-center justify-between shadow-sm">
-            <div className="flex items-center gap-3">
-              <Mail className="text-[#9B8EC7]" size={20} />
+          <motion.div 
+            initial={{ opacity: 0, y: -10 }} 
+            animate={{ opacity: 1, y: 0 }} 
+            className="mb-8 px-8 py-5 bg-white/60 backdrop-blur-xl border border-white/80 rounded-[2rem] flex flex-col sm:flex-row items-center justify-between shadow-[0_8px_30px_rgb(0,0,0,0.06)] gap-4"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-[#8e3afc]/10 rounded-2xl flex items-center justify-center text-[#8e3afc]">
+                <Mail size={24} />
+              </div>
               <div>
-                <p className="font-bold text-[#4A4458] text-sm">Unlock One-Click Apply</p>
-                <p className="text-xs text-[#4A4458]/70">Connect Gmail to send directly from this dashboard.</p>
+                <p className="font-bold text-gray-900 font-['Montserrat'] text-lg">Unlock One-Click Apply</p>
+                <p className="text-sm text-gray-600 font-['Lato'] mt-0.5">Connect your Gmail to send personalized outreach directly from this dashboard.</p>
               </div>
             </div>
-            <button onClick={handleConnectGmail} className="cursor-pointer px-6 py-2 bg-[#9B8EC7] text-white rounded-xl font-bold text-sm shadow-md hover:bg-[#BDA6CE] transition-all">
+            <button onClick={handleConnectGmail} className="cursor-pointer w-full sm:w-auto px-8 py-3.5 bg-gray-900 text-white rounded-2xl font-bold font-['Montserrat'] shadow-lg hover:bg-gray-800 hover:-translate-y-0.5 transition-all">
               Connect Gmail
             </button>
           </motion.div>
         )}
 
-        <div className="grid lg:grid-cols-[1fr_360px] gap-6">
-          <section className="bg-white p-8 rounded-[2.5rem] shadow-xl shadow-[#9B8EC7]/5 border border-white/50 flex flex-col h-[70vh]">
-            <form onSubmit={handleSearch} className="flex gap-3 mb-8">
-              <input 
-                value={company} 
-                onChange={(e) => setCompany(e.target.value)}
-                placeholder="Target Company Name (e.g. Samsung)"
-                className="flex-1 bg-[#F2EAE0]/40 border-2 border-transparent rounded-2xl px-6 py-4 outline-none focus:border-[#9B8EC7] transition-all font-medium text-[#4A4458]"
-              />
-              <button disabled={isSearching} className="cursor-pointer bg-[#9B8EC7] text-white px-8 py-4 rounded-2xl font-bold hover:bg-[#8e3afc] transition-all disabled:opacity-50">
-                {isSearching ? 'Scouting...' : 'Find Emails'}
+        {/* --- Main Workspace Grid --- */}
+        <div className="grid lg:grid-cols-12 gap-8">
+          
+          {/* LEFT COLUMN: Scout Engine (Search & Results) */}
+          <section className="lg:col-span-5 flex flex-col h-[75vh] min-h-[600px] bg-white/50 backdrop-blur-2xl p-6 md:p-8 rounded-[2.5rem] border border-white/80 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+            <h2 className="text-xl font-black text-gray-900 mb-6 font-['Lato']">Scout Engine</h2>
+            
+            <form onSubmit={handleSearch} className="flex flex-col gap-3 mb-6">
+              <div className="relative">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                <input 
+                  value={company} 
+                  onChange={(e) => setCompany(e.target.value)}
+                  placeholder="Target Company (e.g. Netflix)"
+                  className="w-full bg-white/80 border border-gray-200 rounded-2xl pl-12 pr-4 py-4 outline-none focus:border-[#8e3afc] focus:ring-2 focus:ring-[#8e3afc]/20 transition-all font-medium text-gray-900 font-['Lato']"
+                />
+              </div>
+              <button disabled={isSearching} className="cursor-pointer border-1 border-black w-full bg-[#8e3afc] text-white px-6 py-4 rounded-2xl font-bold font-['Lato'] shadow-lg shadow-[#8e3afc]/25 hover:bg-[#7a2edb] transition-all disabled:opacity-70 flex items-center justify-center gap-2">
+                {isSearching ? <><motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: "linear" }}><LoaderCircle size={18}/></motion.div>Finding Emails Online...</> : 'Find Company Emails'}
               </button>
             </form>
 
+            {/* Results Area */}
             <div className="flex-1 overflow-y-auto pr-2 space-y-3 custom-scrollbar">
-              <AnimatePresence>
+              <AnimatePresence mode="wait">
                 {emails.length > 0 ? (
                   emails.map((email, index) => (
-                    <motion.div key={email} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.05 }} className="bg-[#F2EAE0]/20 p-4 rounded-2xl border border-[#BDA6CE]/20 flex items-center justify-between group hover:border-[#9B8EC7]/50 transition-all">
-                      <div className="flex flex-col">
-                        <span className="text-[#4A4458] font-bold">{email}</span>
-                        <span className="text-[#4A4458]/50 text-[10px] font-bold uppercase tracking-widest mt-1">Verified Contact</span>
+                    <motion.div 
+                      key={email} 
+                      initial={{ opacity: 0, y: 10 }} 
+                      animate={{ opacity: 1, y: 0 }} 
+                      transition={{ delay: index * 0.05 }} 
+                      className="bg-white/80 p-4 rounded-2xl border border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:border-[#8e3afc]/30 hover:shadow-md transition-all group"
+                    >
+                      <div className="flex flex-col overflow-hidden">
+                        <span className="text-gray-900 font-bold font-['Lato'] truncate">{email}</span>
+                        <div className="flex items-center gap-1 mt-1">
+                          <CheckCircle2 size={12} className="text-green-500" />
+                          <span className="text-green-600 text-[10px] font-bold uppercase tracking-widest">Verified</span>
+                        </div>
                       </div>
-                      <div className="flex gap-2">
-                        <button onClick={() => { navigator.clipboard.writeText(email); setCopiedIndex(index); setTimeout(() => setCopiedIndex(null), 2000); }} className="cursor-pointer p-2.5 text-[#9B8EC7] hover:bg-white rounded-xl transition-all shadow-sm">
-                          {copiedIndex === index ? <CheckCircle2 size={18} /> : <Copy size={18} />}
+                      
+                      <div className="flex gap-2 shrink-0">
+                        <button 
+                          onClick={() => { navigator.clipboard.writeText(email); setCopiedIndex(index); setTimeout(() => setCopiedIndex(null), 2000); }} 
+                          className="p-2.5 text-gray-400 hover:text-[#8e3afc] hover:bg-[#8e3afc]/10 rounded-xl transition-colors"
+                          title="Copy Email"
+                        >
+                          {copiedIndex === index ? <CheckCircle2 size={18} className="text-green-500" /> : <Copy size={18} />}
                         </button>
                         
                         {isGmailConnected ? (
-                            <button 
-                              onClick={() => handleSendEmail(email)}
-                              disabled={sendingTo === email || sentEmails.has(email)}
-                              className={`cursor-pointer flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold shadow-sm transition-all disabled:opacity-70
-                                ${sentEmails.has(email) 
-                                  ? 'bg-green-100 text-green-600 cursor-default' 
-                                  : 'bg-[#9B8EC7] text-white hover:bg-[#8A7DB6]'
-                                }`}
-                            >
-                              {sendingTo === email ? (
-                                <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: "linear" }}>
-                                  <Zap size={16} />
-                                </motion.div>
-                              ) : sentEmails.has(email) ? (
-                                <CheckCircle2 size={16} />
-                              ) : (
-                                <Send size={16} />
-                              )}
-                              {sendingTo === email ? 'Sending...' : sentEmails.has(email) ? 'Sent' : 'Send Now'}
-                            </button>
-                          ) :  (
-                          <button onClick={() => openMailClient(email)} className="cursor-pointer bg-[#B4D3D9]/40 text-[#4A4458] p-2.5 rounded-xl hover:bg-[#B4D3D9] transition-all shadow-sm flex items-center gap-2">
+                          <button 
+                            onClick={() => handleSendEmail(email)}
+                            disabled={sendingTo === email || sentEmails.has(email)}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all disabled:opacity-100 font-['Lato']
+                              ${sentEmails.has(email) 
+                                ? 'bg-green-50 text-green-600 border border-green-200 cursor-default' 
+                                : 'bg-[#8e3afc]/10 text-[#8e3afc] hover:bg-[#8e3afc] hover:text-white'
+                              }`}
+                          >
+                            {sendingTo === email ? 'Sending...' : sentEmails.has(email) ? 'Sent' : 'Send'}
+                          </button>
+                        ) : (
+                          <button 
+                            onClick={() => openMailClient(email)} 
+                            className="p-2.5 bg-gray-50 text-gray-600 rounded-xl hover:bg-gray-100 hover:text-gray-900 transition-colors border border-gray-200"
+                            title="Open in Gmail App"
+                          >
                             <ExternalLink size={18} />
                           </button>
                         )}
@@ -316,74 +338,103 @@ export default function FlowPage() {
                     </motion.div>
                   ))
                 ) : !isSearching && (
-                  <div className="h-full flex flex-col items-center justify-center text-center">
-                    <div className="bg-[#F2EAE0] w-16 h-16 rounded-full flex items-center justify-center mb-4 text-[#BDA6CE]"><FileText size={28} /></div>
-                    <p className="text-[#4A4458]/50 font-noto italic">Results will appear here...</p>
-                  </div>
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="h-full flex flex-col items-center justify-center text-center px-4">
+                    <div className="w-20 h-20 rounded-full bg-white border border-gray-100 shadow-sm flex items-center justify-center mb-4 text-gray-300">
+                      <Search size={32} />
+                    </div>
+                    <p className="text-gray-500 font-['Lato'] font-medium">Results will appear here...</p>
+                    <p className="text-sm text-gray-400 mt-2">Enter a company name to start scouting.</p>
+                  </motion.div>
                 )}
               </AnimatePresence>
             </div>
           </section>
 
-          <aside className="space-y-6 overflow-y-auto pb-6 custom-scrollbar h-[70vh] pr-2">
-            <div>
-              <h3 className="text-[#4A4458] font-black uppercase text-xs tracking-widest px-2 mb-3">Base Template</h3>
-              <div className="flex gap-2 overflow-x-auto pb-2">
+          {/* RIGHT COLUMN: Campaign Builder */}
+          <section className="lg:col-span-7 flex flex-col h-[75vh] min-h-[600px]">
+            
+            {/* Templates Selector */}
+            <div className="mb-6">
+              <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-3 ml-1">Select Template</h3>
+              <div className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar hide-scroll-on-mobile">
                 {TEMPLATES.map((t) => (
-                  <button key={t.id} onClick={() => setSelectedTemplate(t)} className={`cursor-pointer shrink-0 px-4 py-2 rounded-xl border-2 transition-all text-sm font-bold ${selectedTemplate.id === t.id ? 'bg-white border-[#9B8EC7] text-[#9B8EC7]' : 'bg-white/40 border-transparent text-[#4A4458]/60 hover:bg-white/60'}`}>
+                  <button 
+                    key={t.id} 
+                    onClick={() => setSelectedTemplate(t)} 
+                    className={`cursor-pointer border-black border-1shrink-0 px-5 py-2.5 rounded-full border transition-all text-sm font-bold font-['Lato']
+                      ${selectedTemplate.id === t.id 
+                        ? 'bg-[#8e3afc] border-[#8e3afc] text-white shadow-md shadow-[#8e3afc]/20' 
+                        : 'bg-white/50 border-white/80 text-gray-600 hover:bg-white hover:border-gray-200'
+                      }`}
+                  >
                     {t.name}
                   </button>
                 ))}
               </div>
             </div>
 
-            <div className="bg-white p-6 rounded-4xl border border-[#BDA6CE]/30 shadow-xl shadow-[#9B8EC7]/5 space-y-4">
-              <h3 className="text-[#4A4458] font-black uppercase text-xs tracking-widest mb-1">Compose Campaign</h3>
-              <div>
-                <label className="text-xs font-bold text-[#4A4458]/70 ml-1">Subject</label>
-                <input 
-                  value={customSubject}
-                  onChange={(e) => setCustomSubject(e.target.value)}
-                  className="w-full mt-1 bg-[#F2EAE0]/30 border-2 border-transparent rounded-xl px-4 py-2 outline-none focus:border-[#9B8EC7] transition-all text-sm font-medium text-[#4A4458]"
-                />
+            {/* Editor Box */}
+            <div className="flex-1 bg-white/50 backdrop-blur-2xl p-6 md:p-8 rounded-[2.5rem] border border-white/80 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex flex-col">
+              <h3 className="text-2xl font-black text-gray-900 mb-6 font-['Lato']">Compose Campaign</h3>
+              
+              <div className="flex flex-col gap-5 flex-1">
+                <div>
+                  <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">Subject Line</label>
+                  <input 
+                    value={customSubject}
+                    onChange={(e) => setCustomSubject(e.target.value)}
+                    className="w-full mt-1.5 bg-white/80 border border-gray-200 rounded-xl px-4 py-3 outline-none focus:border-[#8e3afc] focus:ring-2 focus:ring-[#8e3afc]/20 transition-all text-gray-900 font-medium font-['Lato']"
+                  />
+                </div>
+                
+                <div className="flex-1 flex flex-col">
+                  <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">Message Body</label>
+                  <textarea 
+                    value={customBody}
+                    onChange={(e) => setCustomBody(e.target.value)}
+                    className="w-full mt-1.5 flex-1 bg-white/80 border border-gray-200 rounded-xl px-4 py-4 outline-none focus:border-[#8e3afc] focus:ring-2 focus:ring-[#8e3afc]/20 transition-all text-gray-700 font-medium font-['Lato'] resize-none leading-relaxed"
+                  />
+                </div>
+
+                {/* File Upload Dropzone */}
+                <div>
+                  <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1 mb-1.5 block">Attachment (Resume)</label>
+                  <label className={`flex flex-col items-center justify-center w-full p-6 border-2 border-dashed rounded-2xl cursor-pointer transition-all bg-white/40
+                    ${resume ? 'border-[#8e3afc] bg-[#8e3afc]/5' : 'border-gray-300 hover:border-[#8e3afc]/50 hover:bg-white/80'}`}>
+                    
+                    {resume ? (
+                      <div className="flex items-center gap-3 text-[#8e3afc]">
+                        <FileText size={24} />
+                        <span className="font-bold font-['Lato']">{resume.name}</span>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center gap-2 text-gray-500">
+                        <UploadCloud size={28} className="text-gray-400" />
+                        <span className="font-bold font-['Lato'] text-sm">Click to upload PDF or Word doc</span>
+                      </div>
+                    )}
+                    <input type="file" accept=".pdf,.doc,.docx" className="hidden" onChange={handleFileChange} />
+                  </label>
+                </div>
+
+                {/* Bulk Send Button */}
+                {isGmailConnected && emails.length > 0 && (
+                  <button 
+                    onClick={handleBulkSend}
+                    disabled={isBulkSending}
+                    className="w-full py-4 mt-2 bg-gray-900 text-white rounded-2xl font-black font-['Montserrat'] shadow-xl hover:bg-gray-800 transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:hover:bg-gray-900"
+                  >
+                    {isBulkSending ? (
+                      <><motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: "linear" }}><LoaderCircle size={20} /></motion.div> Sending Campaign...</>
+                    ) : (
+                      <><Send size={20} /> Send to All ({emails.length} Contacts)</>
+                    )}
+                  </button>
+                )}
               </div>
-              <div>
-                <label className="text-xs font-bold text-[#4A4458]/70 ml-1">Message Body</label>
-                <textarea 
-                  value={customBody}
-                  onChange={(e) => setCustomBody(e.target.value)}
-                  rows={6}
-                  className="w-full mt-1 bg-[#F2EAE0]/30 border-2 border-transparent rounded-xl px-4 py-2 outline-none focus:border-[#9B8EC7] transition-all text-sm font-medium text-[#4A4458] resize-none"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-bold text-[#4A4458]/70 ml-1 mb-1 block">Attachment (Resume)</label>
-                <label className="flex items-center justify-center gap-2 w-full p-4 border-2 border-dashed border-[#BDA6CE] rounded-xl cursor-pointer hover:bg-[#F2EAE0]/30 transition-all">
-                  <Paperclip size={18} className="text-[#9B8EC7]" />
-                  <span className="text-sm font-bold text-[#4A4458]/70">
-                    {resume ? resume.name : 'Click to attach PDF'}
-                  </span>
-                  <input type="file" accept=".pdf,.doc,.docx" className="hidden" onChange={handleFileChange} />
-                </label>
-              </div>
-              {isGmailConnected && emails.length > 0 && (
-                <button 
-                  onClick={handleBulkSend}
-                  disabled={isBulkSending}
-                  className="cursor-pointer w-full py-4 mt-2 bg-linear-to-r from-[#9B8EC7] to-[#8A7DB6] text-white rounded-xl font-black shadow-lg shadow-[#9B8EC7]/20 hover:opacity-90 transition-all flex items-center justify-center gap-2 disabled:opacity-60"
-                >
-                  {isBulkSending ? (
-                    <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: "linear" }}>
-                      <Zap size={20} />
-                    </motion.div>
-                  ) : (
-                    <Send size={20} />
-                  )}
-                  {isBulkSending ? 'Sending Campaign...' : `Send to All (${emails.length})`}
-                </button>
-              )}
             </div>
-          </aside>
+
+          </section>
         </div>
       </div>
     </div>

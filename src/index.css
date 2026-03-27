@@ -13,7 +13,7 @@ body,
 
 body {
   margin: 0;
-  background: radial-gradient( #c3f5ff 0%, #dbe4ff 55%, #d6f8ff 100%);
+  background: radial-gradient( rgb(221, 255, 208) 0%, #fdffed 55%, #e0fdff 100%);
   color: rgba(255, 255, 255, 0.92);
 }
 

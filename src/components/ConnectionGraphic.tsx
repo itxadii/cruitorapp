@@ -2,11 +2,11 @@ import { motion } from 'framer-motion';
 
 export default function ConnectionGraphic() {
   const nodes = [
-    { name: 'Google', image: '/google.png', color: '#9b9a9c', top: '15%', left: '20%', delay: 0 },
-    { name: 'Amazon', image: '/amazon.png', color: '#9b9a9c', top: '22%', left: '80%', delay: 0.5 },
-    { name: 'IBM', image: '/ibm.png', color: '#9b9a9c', top: '65%', left: '88%', delay: 1 },
-    { name: 'Samsung', image: '/samsung.png', color: '#9b9a9c', top: '88%', left: '50%', delay: 0.8 },
-    { name: 'Intel', image: '/intel.png', color: '#9b9a9c', top: '62%', left: '12%', delay: 1.5 },
+    { name: 'Google', image: '/google.png', color: '#8f8f8f', top: '15%', left: '20%', delay: 0 },
+    { name: 'Amazon', image: '/amazon.png', color: '#8f8f8f', top: '22%', left: '80%', delay: 0.5 },
+    { name: 'IBM', image: '/ibm.png', color: '#8f8f8f', top: '65%', left: '88%', delay: 1 },
+    { name: 'Samsung', image: '/samsung.png', color: '#8f8f8f', top: '88%', left: '50%', delay: 0.8 },
+    { name: 'Intel', image: '/intel.png', color: '#8f8f8f', top: '62%', left: '12%', delay: 1.5 },
   ];
 
   return (
@@ -40,7 +40,7 @@ export default function ConnectionGraphic() {
         animate={{ scale: 1 }}
         transition={{ type: "spring", stiffness: 200, damping: 15 }}
       >
-        <div className="w-20 h-20 sm:w-32 sm:h-32 bg-white rounded-full shadow-2xl border-4 border-[#9b9a9c] flex items-center justify-center relative">
+        <div className="w-20 h-20 sm:w-32 sm:h-32 bg-white rounded-full shadow-2xl border-4 border-[#8f8f8f] flex items-center justify-center relative">
           
           {/* Subtle pulse ring behind center node (Needs to be outside the hidden overflow) */}
           <div className="absolute inset-0 rounded-full border-4 border-[#7d3ff0] animate-ping opacity-20"></div>
@@ -75,7 +75,7 @@ export default function ConnectionGraphic() {
           >
             {/* BIGGER LOGOS ON DESKTOP, SMALLER ON MOBILE: w-14 on mobile, w-28 on desktop */}
             <div 
-              className="w-14 h-14 sm:w-28 sm:h-28 bg-white rounded-full shadow-lg border-2 flex items-center justify-center overflow-hidden p-2.5 sm:p-4"
+              className="w-14 h-14 sm:w-28 sm:h-28 bg-white rounded-full shadow-lg border-6 flex items-center justify-center overflow-hidden p-2.5 sm:p-4"
               style={{ borderColor: `${node.color}40` }}
             >
               <img 

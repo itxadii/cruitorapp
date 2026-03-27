@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Zap, CheckCircle2, AlertCircle } from 'lucide-react';
+import { LoaderCircle, CheckCircle2, AlertCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { getCurrentUser } from 'aws-amplify/auth'; // Import Amplify auth
 
@@ -87,7 +87,7 @@ export default function AuthCallback() {
         <div className="flex justify-center mb-6">
           {status === 'loading' && (
             <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 2, ease: "linear" }} className="bg-[#B4D3D9] p-4 rounded-full text-[#4A4458]">
-              <Zap size={32} />
+              <LoaderCircle size={32} />
             </motion.div>
           )}
           {status === 'success' && (

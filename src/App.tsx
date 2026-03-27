@@ -59,7 +59,9 @@ function App() {
   return (
     <BrowserRouter>
       <div className="flex min-h-screen flex-col">
-        <GridPattern className="absolute inset-0 -z-10" />
+        <div className="fixed inset-0 z-0 pointer-events-none">
+          <GridPattern className="w-full h-full" />
+        </div>
         <Navbar />
         <main className="grow">
           <AppRoutes />

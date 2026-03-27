@@ -24,7 +24,7 @@ const Navbar = () => {
               <div className="bg-[#9B8EC7] p-1.5 rounded-lg shadow-sm">
                 <Rocket size={18} className="text-white" />
               </div>
-              <span className="text-xl font-black text-[#4A4458] tracking-tight font-['Lato']">
+              <span className="text-xl font-black text-[#4A4458] tracking-tight font-['Merriweather']">
                 Cruitor<span className="text-[#9B8EC7]">.com</span>
               </span>
             </Link>
@@ -46,7 +46,7 @@ const Navbar = () => {
               ) : (
                 <div className="flex items-center gap-4">
                   <button onClick={() => navigate('/login')} className="cursor-pointer text-sm font-bold text-[#4A4458] hover:text-[#9B8EC7]">Log in</button>
-                  <button onClick={() => navigate('/signup')} className="cursor-pointer bg-[#8864ff] text-white px-6 py-2 rounded-full text-sm font-bold hover:bg-[#7d96db] transition-all shadow-md">Get Started</button>
+                  <button onClick={() => navigate('/signup')} className="cursor-pointer bg-[#8864ff] text-white px-6 py-2 rounded-full text-sm font-bold hover:bg-[#1050ff] transition-all shadow-md">Get Started</button>
                 </div>
               )}
             </div>
