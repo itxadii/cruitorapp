@@ -165,6 +165,98 @@ async function searchEmailsInSnippets(company: string, domain: string): Promise<
   return [...emails];
 }
 
+// ─── Step 5: SMTP Verify emails ───────────────────────────────────────────────
+import * as net from 'net';
+import * as dns from 'dns/promises';
+
+async function getMxHost(domain: string): Promise<string | null> {
+  try {
+    const records = await dns.resolveMx(domain);
+    if (!records?.length) return null;
+    // Sort by priority (lowest = preferred)
+    records.sort((a, b) => a.priority - b.priority);
+    return records[0].exchange;
+  } catch {
+    return null;
+  }
+}
+
+async function smtpVerifyEmail(email: string, mxHost: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    const timeout = setTimeout(() => {
+      socket.destroy();
+      resolve(true); // Assume valid if server is slow (don't discard)
+    }, 4000);
+
+    const socket = net.createConnection(25, mxHost);
+    let stage = 0;
+    let buffer = '';
+
+    socket.on('data', (data) => {
+      buffer += data.toString();
+      const lines = buffer.split('\r\n');
+      buffer = lines.pop() || '';
+
+      for (const line of lines) {
+        if (stage === 0 && line.startsWith('220')) {
+          socket.write(`EHLO cruitor.com\r\n`);
+          stage = 1;
+        } else if (stage === 1 && (line.startsWith('250') || line.startsWith('220'))) {
+          socket.write(`MAIL FROM:<verify@cruitor.com>\r\n`);
+          stage = 2;
+        } else if (stage === 2 && line.startsWith('250')) {
+          socket.write(`RCPT TO:<${email}>\r\n`);
+          stage = 3;
+        } else if (stage === 3) {
+          clearTimeout(timeout);
+          socket.write('QUIT\r\n');
+          socket.destroy();
+          if (line.startsWith('250') || line.startsWith('251')) {
+            resolve(true);  // ✅ Email exists
+          } else if (line.startsWith('550') || line.startsWith('551') || line.startsWith('553')) {
+            resolve(false); // ❌ User unknown
+          } else {
+            resolve(true);  // 4xx or unknown = assume valid, don't discard
+          }
+        }
+      }
+    });
+
+    socket.on('error', () => {
+      clearTimeout(timeout);
+      resolve(true); // Network error = assume valid
+    });
+
+    socket.on('timeout', () => {
+      clearTimeout(timeout);
+      socket.destroy();
+      resolve(true);
+    });
+  });
+}
+
+async function verifyEmails(emails: string[], domain: string): Promise<string[]> {
+  const mxHost = await getMxHost(domain);
+  if (!mxHost) {
+    console.log(`No MX record found for ${domain}, skipping SMTP verify`);
+    return emails; // Can't verify, return all
+  }
+
+  console.log(`MX host for ${domain}: ${mxHost}`);
+
+  const results = await Promise.allSettled(
+    emails.map(async (email) => {
+      const valid = await smtpVerifyEmail(email, mxHost);
+      console.log(`SMTP check ${email}: ${valid ? '✅' : '❌'}`);
+      return { email, valid };
+    })
+  );
+
+  return results
+    .filter(r => r.status === 'fulfilled' && r.value.valid)
+    .map(r => (r as PromiseFulfilledResult<{ email: string; valid: boolean }>).value.email);
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function isValidEmail(email: string): boolean {
   if (email.includes('%')) return false;
@@ -250,14 +342,18 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     const finalEmails = filterAndRankEmails(allEmails, domain);
     console.log(`Final emails: ${finalEmails.length}`);
 
+    // Step 6 — SMTP verify
+    const verifiedEmails = await verifyEmails(finalEmails, domain);
+    console.log(`Verified: ${verifiedEmails.length} / ${finalEmails.length}`);
+
     return {
       statusCode: 200,
       headers,
       body: JSON.stringify({
         company,
         domain,
-        emails: finalEmails,
-        total: finalEmails.length,
+        emails: verifiedEmails,
+        total: verifiedEmails.length,
       }),
     };
 

@@ -1,7 +1,7 @@
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
-import { Authenticator } from '@aws-amplify/ui-react';
-import '@aws-amplify/ui-react/styles.css';
+import { useEffect, useState } from 'react';
+import { getCurrentUser } from 'aws-amplify/auth';
 
 // Components & Pages
 import Navbar from './components/Navbar';
@@ -13,7 +13,22 @@ import { Login } from './pages/Login';
 import { Signup } from './pages/Signup';
 import { NotFound } from './pages/NotFound';
 import FlowPage from './pages/FlowPage';
-import AuthCallback from './pages/AuthCallback'; // Make sure you created this file!
+import AuthCallback from './pages/AuthCallback';
+import GridPattern from './components/ui/grid-pattern';
+
+function RequireAuth({ children }: { children: React.ReactNode }) {
+  const [status, setStatus] = useState<'loading' | 'auth' | 'unauth'>('loading');
+
+  useEffect(() => {
+    getCurrentUser()
+      .then(() => setStatus('auth'))
+      .catch(() => setStatus('unauth'));
+  }, []);
+
+  if (status === 'loading') return null;
+  if (status === 'unauth') return <Navigate to="/login" replace />;
+  return <>{children}</>;
+}
 
 function AppRoutes() {
   const location = useLocation();
@@ -21,28 +36,14 @@ function AppRoutes() {
   return (
     <AnimatePresence mode="wait">
       <Routes location={location} key={location.pathname}>
-        
-        {/* PROTECTED ROUTES: Only accessible after login */}
-        <Route 
-          path="/app" 
-          element={
-            <Authenticator>
-                <FlowPage/>
-            </Authenticator>
-          } 
-        />
-        
-        {/* NEW ROUTE: Where Google sends the user back after consent */}
-        <Route 
-          path="/auth/callback" 
-          element={
-            <Authenticator>
-                <AuthCallback/>
-            </Authenticator>
-          } 
-        />
 
-        {/* PUBLIC ROUTES */}
+        <Route path="/app" element={
+          <RequireAuth><FlowPage /></RequireAuth>
+        } />
+
+        <Route path="/auth/callback" element={
+          <RequireAuth><AuthCallback /></RequireAuth>
+        } />
         <Route path="/" element={<Home />} />
         <Route path="/about" element={<About />} />
         <Route path="/contact" element={<Contact />} />
@@ -57,18 +58,14 @@ function AppRoutes() {
 function App() {
   return (
     <BrowserRouter>
-      {/* Note: Wrapped the whole App in <Authenticator.Provider> 
-          so the Navbar knows the auth state globally.
-      */}
-      <Authenticator.Provider>
-        <div className="flex min-h-screen flex-col bg-[#B4D3D9]">
-          <Navbar />
-          <main className="grow">
-            <AppRoutes />
-          </main>
-          <Footer />
-        </div>
-      </Authenticator.Provider>
+      <div className="flex min-h-screen flex-col">
+        <GridPattern className="absolute inset-0 -z-10" />
+        <Navbar />
+        <main className="grow">
+          <AppRoutes />
+        </main>
+        <Footer />
+      </div>
     </BrowserRouter>
   );
 }

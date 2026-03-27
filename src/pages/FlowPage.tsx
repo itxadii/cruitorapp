@@ -240,7 +240,7 @@ export default function FlowPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F2EAE0] pt-32 pb-16 px-4 font-roboto">
+    <div className="min-h-screen pt-32 pb-16 px-4 font-roboto">
       <div className="max-w-6xl mx-auto">
         
         {!isDbLoading && !isGmailConnected && (
@@ -282,7 +282,7 @@ export default function FlowPage() {
                         <span className="text-[#4A4458]/50 text-[10px] font-bold uppercase tracking-widest mt-1">Verified Contact</span>
                       </div>
                       <div className="flex gap-2">
-                        <button onClick={() => { navigator.clipboard.writeText(email); setCopiedIndex(index); setTimeout(() => setCopiedIndex(null), 2000); }} className="p-2.5 text-[#9B8EC7] hover:bg-white rounded-xl transition-all shadow-sm">
+                        <button onClick={() => { navigator.clipboard.writeText(email); setCopiedIndex(index); setTimeout(() => setCopiedIndex(null), 2000); }} className="cursor-pointer p-2.5 text-[#9B8EC7] hover:bg-white rounded-xl transition-all shadow-sm">
                           {copiedIndex === index ? <CheckCircle2 size={18} /> : <Copy size={18} />}
                         </button>
                         
@@ -290,7 +290,7 @@ export default function FlowPage() {
                             <button 
                               onClick={() => handleSendEmail(email)}
                               disabled={sendingTo === email || sentEmails.has(email)}
-                              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold shadow-sm transition-all disabled:opacity-70
+                              className={`cursor-pointer flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold shadow-sm transition-all disabled:opacity-70
                                 ${sentEmails.has(email) 
                                   ? 'bg-green-100 text-green-600 cursor-default' 
                                   : 'bg-[#9B8EC7] text-white hover:bg-[#8A7DB6]'
@@ -308,7 +308,7 @@ export default function FlowPage() {
                               {sendingTo === email ? 'Sending...' : sentEmails.has(email) ? 'Sent' : 'Send Now'}
                             </button>
                           ) :  (
-                          <button onClick={() => openMailClient(email)} className="bg-[#B4D3D9]/40 text-[#4A4458] p-2.5 rounded-xl hover:bg-[#B4D3D9] transition-all shadow-sm flex items-center gap-2">
+                          <button onClick={() => openMailClient(email)} className="cursor-pointer bg-[#B4D3D9]/40 text-[#4A4458] p-2.5 rounded-xl hover:bg-[#B4D3D9] transition-all shadow-sm flex items-center gap-2">
                             <ExternalLink size={18} />
                           </button>
                         )}
@@ -330,14 +330,14 @@ export default function FlowPage() {
               <h3 className="text-[#4A4458] font-black uppercase text-xs tracking-widest px-2 mb-3">Base Template</h3>
               <div className="flex gap-2 overflow-x-auto pb-2">
                 {TEMPLATES.map((t) => (
-                  <button key={t.id} onClick={() => setSelectedTemplate(t)} className={`cursor-pointer flex-shrink-0 px-4 py-2 rounded-xl border-2 transition-all text-sm font-bold ${selectedTemplate.id === t.id ? 'bg-white border-[#9B8EC7] text-[#9B8EC7]' : 'bg-white/40 border-transparent text-[#4A4458]/60 hover:bg-white/60'}`}>
+                  <button key={t.id} onClick={() => setSelectedTemplate(t)} className={`cursor-pointer shrink-0 px-4 py-2 rounded-xl border-2 transition-all text-sm font-bold ${selectedTemplate.id === t.id ? 'bg-white border-[#9B8EC7] text-[#9B8EC7]' : 'bg-white/40 border-transparent text-[#4A4458]/60 hover:bg-white/60'}`}>
                     {t.name}
                   </button>
                 ))}
               </div>
             </div>
 
-            <div className="bg-white p-6 rounded-[2rem] border border-[#BDA6CE]/30 shadow-xl shadow-[#9B8EC7]/5 space-y-4">
+            <div className="bg-white p-6 rounded-4xl border border-[#BDA6CE]/30 shadow-xl shadow-[#9B8EC7]/5 space-y-4">
               <h3 className="text-[#4A4458] font-black uppercase text-xs tracking-widest mb-1">Compose Campaign</h3>
               <div>
                 <label className="text-xs font-bold text-[#4A4458]/70 ml-1">Subject</label>
@@ -370,7 +370,7 @@ export default function FlowPage() {
                 <button 
                   onClick={handleBulkSend}
                   disabled={isBulkSending}
-                  className="cursor-pointer w-full py-4 mt-2 bg-gradient-to-r from-[#9B8EC7] to-[#8A7DB6] text-white rounded-xl font-black shadow-lg shadow-[#9B8EC7]/20 hover:opacity-90 transition-all flex items-center justify-center gap-2 disabled:opacity-60"
+                  className="cursor-pointer w-full py-4 mt-2 bg-linear-to-r from-[#9B8EC7] to-[#8A7DB6] text-white rounded-xl font-black shadow-lg shadow-[#9B8EC7]/20 hover:opacity-90 transition-all flex items-center justify-center gap-2 disabled:opacity-60"
                 >
                   {isBulkSending ? (
                     <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: "linear" }}>
