@@ -24,9 +24,9 @@ export function Footer() {
           
           {/* Social Media Icons (Using the custom SVGs from the bottom of the file) */}
           <div className="flex gap-4">
-            <SocialLink href="#" icon={<TwitterIcon size={18} />} />
-            <SocialLink href="#" icon={<LinkedinIcon size={18} />} />
-            <SocialLink href="#" icon={<GithubIcon size={18} />} />
+            <SocialLink href="https://x.com/ifeelhonney" icon={<TwitterIcon size={18} />} />
+            <SocialLink href="https://www.linkedin.com/in/xadi/" icon={<LinkedinIcon size={18} />} />
+            <SocialLink href="https://github.com/itxadii/cruitorapp" icon={<GithubIcon size={18} />} />
           </div>
         </div>
 

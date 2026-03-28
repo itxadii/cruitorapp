@@ -146,16 +146,47 @@ export default function FlowPage() {
     const clientId = '266505653498-lrvoud93881fotn8h50aijglgec85i06.apps.googleusercontent.com';
     const redirectUri = `${window.location.origin}/auth/callback`;
     const scope = 'https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/userinfo.email';
-    window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}&access_type=offline&prompt=consent`;
+
+    const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}&access_type=offline&prompt=consent`;
+
+    const width = 500;
+    const height = 600;
+
+    const left = window.screenX + (window.outerWidth - width) / 2;
+    const top = window.screenY + (window.outerHeight - height) / 2;
+
+    const popup = window.open(
+      authUrl,
+      "Google OAuth",
+      `width=${width},height=${height},left=${left},top=${top}`
+    );
+
+    if (!popup) {
+      alert("Popup blocked! Please allow popups.");
+    }
   };
 
-  const openMailClient = (email: string) => {
-    window.open(`https://mail.google.com/mail/?view=cm&fs=1&to=${email}&su=${encodeURIComponent(customSubject)}&body=${encodeURIComponent(customBody)}`, '_blank');
-  };
+  useEffect(() => {
+    const handler = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin) return;
+
+      if (event.data?.type === "GMAIL_CONNECTED") {
+        console.log("Connected:", event.data.email);
+        setIsGmailConnected(true);
+      }
+
+      if (event.data?.type === "GMAIL_ERROR") {
+        alert("Gmail connection failed");
+      }
+    };
+
+    window.addEventListener("message", handler);
+    return () => window.removeEventListener("message", handler);
+  }, []);
 
   return (
     <div className="min-h-screen pt-24 pb-16 px-4 sm:px-6 relative z-10">
-      <div className="max-w-[1400px] mx-auto">
+      <div className="max-w-350 mx-auto">
 
         {/* Gmail Connect Banner */}
         {!isDbLoading && !isGmailConnected && (

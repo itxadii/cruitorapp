@@ -2,15 +2,13 @@ import { useEffect, useState, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { LoaderCircle, CheckCircle2, AlertCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { getCurrentUser } from 'aws-amplify/auth'; // Import Amplify auth
+import { getCurrentUser } from 'aws-amplify/auth';
 
 export default function AuthCallback() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
   const [message, setMessage] = useState('Verifying your Gmail connection...');
-  
-  // Use a ref to prevent the effect from running twice in React Strict Mode
   const hasRun = useRef(false);
 
   useEffect(() => {
@@ -22,37 +20,51 @@ export default function AuthCallback() {
 
     if (error) {
       setStatus('error');
-      setMessage('You declined the connection. Redirecting back...');
-      setTimeout(() => navigate('/app'), 3000); // Redirects to the dashboard
+      setMessage('You declined the connection.');
+
+      if (window.opener) {
+        window.opener.postMessage(
+          { type: "GMAIL_ERROR", error: "User denied access" },
+          window.location.origin
+        );
+        window.close();
+      } else {
+        setTimeout(() => navigate('/app'), 2000);
+      }
       return;
     }
 
     if (!code) {
       setStatus('error');
-      setMessage('No authorization code found. Redirecting...');
-      setTimeout(() => navigate('/app'), 3000);
+      setMessage('No authorization code found.');
+
+      if (window.opener) {
+        window.opener.postMessage(
+          { type: "GMAIL_ERROR", error: "No code" },
+          window.location.origin
+        );
+        window.close();
+      } else {
+        setTimeout(() => navigate('/app'), 2000);
+      }
       return;
     }
 
     const exchangeCodeForToken = async () => {
       try {
-        setMessage('Securing your connection in the database...');
-        
-        // 1. Get the current logged-in user's ID
+        setMessage('Securing your connection...');
+
         const user = await getCurrentUser();
         const userId = user.userId;
 
-        // 2. Send the code and userId to your new Lambda endpoint
-        const response = await fetch('https://y3u1vnxxki.execute-api.ap-south-1.amazonaws.com/prod/auth-gmail', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ 
-            code: code,
-            userId: userId 
-          }),
-        });
+        const response = await fetch(
+          'https://y3u1vnxxki.execute-api.ap-south-1.amazonaws.com/prod/auth-gmail',
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code, userId }),
+          }
+        );
 
         const data = await response.json();
 
@@ -61,16 +73,32 @@ export default function AuthCallback() {
         }
 
         setStatus('success');
-        setMessage(`Success! Connected as ${data.email}. Redirecting...`);
-        
-        // Bounce them back to the dashboard after success
-        setTimeout(() => navigate('/app'), 2500); 
+        setMessage(`Connected as ${data.email}`);
+
+        if (window.opener) {
+          window.opener.postMessage(
+            { type: "GMAIL_CONNECTED", email: data.email },
+            window.location.origin
+          );
+          setTimeout(() => window.close(), 1000);
+        } else {
+          setTimeout(() => navigate('/app'), 1500);
+        }
 
       } catch (err: any) {
-        console.error("Auth Exchange Error:", err);
+        console.error(err);
         setStatus('error');
-        setMessage(err.message || 'Failed to securely connect Gmail. Please try again.');
-        setTimeout(() => navigate('/app'), 3500);
+        setMessage(err.message || 'Connection failed');
+
+        if (window.opener) {
+          window.opener.postMessage(
+            { type: "GMAIL_ERROR", error: err.message },
+            window.location.origin
+          );
+          window.close();
+        } else {
+          setTimeout(() => navigate('/app'), 2000);
+        }
       }
     };
 
@@ -78,34 +106,24 @@ export default function AuthCallback() {
   }, [searchParams, navigate]);
 
   return (
-    <div className="min-h-screen bg-[#F2EAE0] flex flex-col items-center justify-center p-4 font-roboto">
-      <motion.div 
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="bg-white p-10 rounded-[3rem] shadow-xl shadow-[#9B8EC7]/10 border border-white max-w-md w-full text-center"
+    <div className="min-h-screen bg-[#edffd6] flex items-center justify-center">
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="bg-white p-10 rounded-3xl shadow-lg text-center"
       >
-        <div className="flex justify-center mb-6">
-          {status === 'loading' && (
-            <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 2, ease: "linear" }} className="bg-[#B4D3D9] p-4 rounded-full text-[#4A4458]">
-              <LoaderCircle size={32} />
-            </motion.div>
-          )}
-          {status === 'success' && (
-            <div className="bg-[#9B8EC7]/20 p-4 rounded-full text-[#9B8EC7]">
-              <CheckCircle2 size={32} />
-            </div>
-          )}
-          {status === 'error' && (
-            <div className="bg-red-100 p-4 rounded-full text-red-500">
-              <AlertCircle size={32} />
-            </div>
-          )}
+        <div className="mb-4 flex justify-center">
+          {status === 'loading' && <LoaderCircle className="animate-spin" />}
+          {status === 'success' && <CheckCircle2 className="text-green-500" />}
+          {status === 'error' && <AlertCircle className="text-red-500" />}
         </div>
-        
-        <h2 className="text-2xl font-black text-[#4A4458] mb-2 tracking-tight">
-          {status === 'loading' ? 'Connecting...' : status === 'success' ? 'Connected!' : 'Oops!'}
+
+        <h2 className="text-xl font-bold">
+          {status === 'loading' ? 'Connecting...' :
+           status === 'success' ? 'Connected!' : 'Error'}
         </h2>
-        <p className="text-[#4A4458]/70 font-noto leading-relaxed">{message}</p>
+
+        <p className="text-gray-500 mt-2">{message}</p>
       </motion.div>
     </div>
   );
