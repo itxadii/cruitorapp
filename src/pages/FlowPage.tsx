@@ -181,9 +181,13 @@ export default function FlowPage() {
     };
 
     window.addEventListener("message", handler);
-    return () => window.removeEventListener("message", handler);
-  }, []);
-
+      return () => window.removeEventListener("message", handler);
+    }, []);
+  
+  const openMailClient = (email: string) => {
+    window.open(`https://mail.google.com/mail/?view=cm&fs=1&to=${email}&su=${encodeURIComponent(customSubject)}&body=${encodeURIComponent(customBody)}`, '_blank');
+  };
+  
   return (
     <div className="min-h-screen pt-24 pb-16 px-4 sm:px-6 relative z-10">
       <div className="max-w-350 mx-auto">
