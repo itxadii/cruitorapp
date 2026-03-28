@@ -15,6 +15,10 @@ import { NotFound } from './pages/NotFound';
 import FlowPage from './pages/FlowPage';
 import AuthCallback from './pages/AuthCallback';
 import GridPattern from './components/ui/grid-pattern';
+import { Features } from './pages/Features';
+import { Privacy } from './pages/Privacy';
+import { Pricing } from './pages/Pricing';
+
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const [status, setStatus] = useState<'loading' | 'auth' | 'unauth'>('loading');
@@ -44,6 +48,9 @@ function AppRoutes() {
         <Route path="/auth/callback" element={
           <RequireAuth><AuthCallback /></RequireAuth>
         } />
+        <Route path="/pricing" element={<Pricing />} />
+        <Route path="/privacy" element={<Privacy />} />
+        <Route path="/features" element={<Features />} />
         <Route path="/" element={<Home />} />
         <Route path="/about" element={<About />} />
         <Route path="/contact" element={<Contact />} />

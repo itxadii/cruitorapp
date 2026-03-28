@@ -3,8 +3,7 @@ import { Link } from 'react-router-dom';
 import ConnectionGraphic from '../components/ConnectionGraphic'; // Assuming you put it here!
 import { Search, Mail, Rocket, ChevronRight } from 'lucide-react';
 import FeatureCard from '../components/FeatureCard';
-import InteractiveDemo from '../components/InteractiveDemo';
-import TrustSection from '../components/TrustSection'; 
+import InteractiveDemo from '../components/InteractiveDemo'; 
 
 export function Home() {
   return (
@@ -37,7 +36,7 @@ export function Home() {
               to="/signup" 
               className="px-10 py-4 flex bg-[#8f39ff] text-white rounded-2xl border-2 border-slate-700 font-bold text-lg shadow-xl shadow-[#9B8EC7]/20 hover:bg-[#7a2edb] transition-all"
             >
-             Send Your First Outreach Email <ChevronRight size={28} strokeWidth={2.5} className="ml-2" />
+             Send Your First Outreach Email <ChevronRight size={28} strokeWidth={2.5} className="" />
             </Link>
             
             <Link 
@@ -73,7 +72,6 @@ export function Home() {
           />
         </div>
       </section>
-      <TrustSection />
     </main>
   );
 }

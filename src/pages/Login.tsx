@@ -1,7 +1,8 @@
 import { motion, AnimatePresence } from 'framer-motion'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { signIn, resetPassword, confirmResetPassword } from 'aws-amplify/auth'
+import { getCurrentUser } from 'aws-amplify/auth'
 
 export function Login() {
   const [form, setForm] = useState({ email: '', password: '' })
@@ -12,6 +13,12 @@ export function Login() {
   const [loading, setLoading] = useState(false)
   const [resetSent, setResetSent] = useState(false)
   const navigate = useNavigate()
+
+  useEffect(() => {
+    getCurrentUser()
+      .then(() => navigate('/app', { replace: true }))
+      .catch(() => {}) 
+  }, [])
 
   const handleLogin = async (event: React.FormEvent) => {
     event.preventDefault()

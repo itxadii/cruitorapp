@@ -32,7 +32,7 @@ export function Footer() {
 
         {/* Column 2: Product Links */}
         <div>
-          <h4 className="text-white font-bold mb-6 font-['Montserrat'] tracking-wide uppercase text-sm">Product</h4>
+          <h4 className="text-white font-bold mb-6 font-['Lato'] tracking-wide uppercase text-sm">Product</h4>
           <ul className="space-y-4 text-sm font-['Lato']">
             <li><FooterLink to="/signup">Get Started</FooterLink></li>
             <li><FooterLink to="/about">How it works</FooterLink></li>
@@ -42,7 +42,7 @@ export function Footer() {
 
         {/* Column 3: Company & Legal Links */}
         <div>
-          <h4 className="text-white font-bold mb-6 font-['Montserrat'] tracking-wide uppercase text-sm">Company</h4>
+          <h4 className="text-white font-bold mb-6 font-['Lato'] tracking-wide uppercase text-sm">Company</h4>
           <ul className="space-y-4 text-sm font-['Lato']">
             <li><FooterLink to="/about">About Us</FooterLink></li>
             <li><FooterLink to="/contact">Contact</FooterLink></li>
