@@ -20,7 +20,7 @@ export function Pricing() {
     <main className="relative pt-24 pb-24 px-6 max-w-5xl mx-auto z-10 flex flex-col justify-center">
       
       {/* Background Ambient Glow */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-[#8e3afc]/15 blur-[120px] rounded-full pointer-events-none" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-150 h-150 bg-[#8e3afc]/15 blur-[120px] rounded-full pointer-events-none" />
 
       <motion.div 
         variants={containerVariants}
@@ -37,7 +37,7 @@ export function Pricing() {
           </div>
           <h1 className="text-4xl md:text-6xl font-black text-gray-900 mb-6 font-['Lato'] tracking-tight">
             Simple pricing. <br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#8e3afc] to-[#BDA6CE]">But not just yet.</span>
+            <span className="text-transparent bg-clip-text bg-linear-to-r from-[#8e3afc] to-[#BDA6CE]">But not just yet.</span>
           </h1>
           <p className="text-lg text-gray-600 font-['Lato'] leading-relaxed">
             Cruitor is currently undergoing rigorous testing to ensure we deliver the absolute best outreach experience. While we finalize our premium plans, we are opening up <span className="font-bold text-gray-900">full, unrestricted access for free.</span>

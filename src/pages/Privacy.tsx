@@ -36,7 +36,7 @@ export function Privacy() {
     <main className="relative pt-24 pb-24 px-6 max-w-4xl mx-auto z-10">
       
       {/* Background Ambient Glow */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-[#8e3afc]/10 blur-[120px] rounded-full pointer-events-none" />
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-150 h-150 bg-[#8e3afc]/10 blur-[120px] rounded-full pointer-events-none" />
 
       <motion.div 
         variants={containerVariants}
@@ -286,7 +286,7 @@ function SectionHeader({ icon, title }: { icon: React.ReactNode, title: string }
 function ListItem({ text }: { text: string }) {
   return (
     <li className="flex items-start gap-3 text-sm text-gray-700 font-['Lato'] font-medium">
-      <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-[#8e3afc] flex-shrink-0" />
+      <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-[#8e3afc] shrink-0" />
       <span>{text}</span>
     </li>
   );
@@ -295,7 +295,7 @@ function ListItem({ text }: { text: string }) {
 function NegativeListItem({ text }: { text: string }) {
   return (
     <li className="flex items-start gap-3 text-sm text-red-800 font-['Lato'] font-medium">
-      <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-red-400 flex-shrink-0" />
+      <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-red-400 shrink-0" />
       <span>{text}</span>
     </li>
   );

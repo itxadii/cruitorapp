@@ -7,16 +7,13 @@ const EMAIL_REGEX = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g;
 
 const HR_KEYWORDS = ['hr', 'careers', 'jobs', 'recruit', 'hiring', 'talent', 'people', 'apply', 'join', 'staffing', 'workforce'];
 
-// Non-HR role emails to reject — press, legal, finance, support etc.
 const NON_HR_ROLES = [
   'press', 'media', 'news', 'legal', 'finance', 'billing', 'sales',
   'support', 'help', 'info', 'hello', 'contact', 'admin', 'security',
   'privacy', 'abuse', 'copyright', 'investor', 'ir@', 'pr@',
 ];
 
-const SPAM_PATTERNS = [
-  'noreply', 'no-reply', 'donotreply', 'bounce', 'mailer', 'daemon',
-];
+const SPAM_PATTERNS = ['noreply', 'no-reply', 'donotreply', 'bounce', 'mailer', 'daemon'];
 
 // ─── Step 1: Get company domain ───────────────────────────────────────────────
 async function getCompanyDomain(company: string): Promise<string> {
@@ -38,76 +35,86 @@ async function getCompanyDomain(company: string): Promise<string> {
   return new URL(data.organic_results[0].link).hostname.replace('www.', '');
 }
 
-// ─── Step 2: HR-targeted search (Call 1) ─────────────────────────────────────
+// ─── Step 2: HR-targeted search ───────────────────────────────────────────────
 async function searchHREmails(company: string, domain: string): Promise<{ urls: string[]; emails: string[] }> {
-  // Focused specifically on HR/recruiting emails — much tighter signal
-  const query = `"${domain}" "hr@" OR "careers@" OR "jobs@" OR "recruit@" OR "talent@" OR "hiring@" OR "people@"`;
-  const url = `https://serpapi.com/search.json?engine=google&q=${encodeURIComponent(query)}&api_key=${SERPAPI_KEY}&num=10`;
+  const queries = [
+    `"@${domain}" recruiter OR "talent acquisition" OR "hr manager" email`,
+    `${company} recruiter email site:linkedin.com OR site:apollo.io OR site:rocketreach.co`,
+    `"${domain}" "hr@" OR "careers@" OR "recruit@" OR "talent@" OR "hiring@" OR "jobs@"`,
+  ];
 
   const urls = new Set<string>();
   const emails = new Set<string>();
 
-  try {
-    const res = await fetch(url);
-    const data = await res.json();
+  await Promise.all(queries.map(async (query) => {
+    try {
+      const url = `https://serpapi.com/search.json?engine=google&q=${encodeURIComponent(query)}&api_key=${SERPAPI_KEY}&num=10`;
+      const res = await fetch(url);
+      const data = await res.json();
 
-    if (data.organic_results) {
-      data.organic_results.forEach((r: any) => {
-        if (r.link) urls.add(r.link);
-
-        const text = `${r.snippet || ''} ${r.title || ''} ${r.displayed_link || ''}`;
-        const matches = text.match(EMAIL_REGEX) || [];
-        matches.forEach((e: string) => {
-          const clean = e.toLowerCase();
-          if (clean.endsWith(`@${domain}`) && isValidEmail(clean)) emails.add(clean);
+      if (data.organic_results) {
+        data.organic_results.forEach((r: any) => {
+          if (r.link && !r.link.includes('linkedin.com') && !r.link.includes('apollo.io')) {
+            urls.add(r.link);
+          }
+          const text = `${r.snippet || ''} ${r.title || ''} ${r.displayed_link || ''}`;
+          const matches = text.match(EMAIL_REGEX) || [];
+          matches.forEach((e: string) => {
+            const clean = e.toLowerCase();
+            if (clean.endsWith(`@${domain}`) && isValidEmail(clean)) emails.add(clean);
+          });
         });
-      });
-    }
+      }
 
-    if (data.related_questions) {
-      data.related_questions.forEach((q: any) => {
-        const text = (q.list || []).join(' ') + (q.snippet || '');
-        const matches = text.match(EMAIL_REGEX) || [];
-        matches.forEach((e: string) => {
-          const clean = e.toLowerCase();
-          if (clean.endsWith(`@${domain}`) && isValidEmail(clean)) emails.add(clean);
+      if (data.related_questions) {
+        data.related_questions.forEach((q: any) => {
+          const text = (q.list || []).join(' ') + (q.snippet || '');
+          const matches = text.match(EMAIL_REGEX) || [];
+          matches.forEach((e: string) => {
+            const clean = e.toLowerCase();
+            if (clean.endsWith(`@${domain}`) && isValidEmail(clean)) emails.add(clean);
+          });
         });
-      });
+      }
+    } catch {
+      console.log(`Query failed: ${query}`);
     }
-  } catch {
-    console.log('HR search failed');
-  }
+  }));
 
   return { urls: [...urls], emails: [...emails] };
 }
 
-// ─── Step 3: Careers page deep search (Call 2 — only if call 1 found < 2) ────
+// ─── Step 3: Careers page search ──────────────────────────────────────────────
 async function searchCareersPage(company: string, domain: string): Promise<{ urls: string[]; emails: string[] }> {
-  const query = `site:${domain} careers OR jobs OR "work with us" OR "join us" email contact`;
-  const url = `https://serpapi.com/search.json?engine=google&q=${encodeURIComponent(query)}&api_key=${SERPAPI_KEY}&num=8`;
+  const queries = [
+    `site:${domain} careers jobs "apply" "email" OR "contact"`,
+    `${company} "hr email" OR "careers email" OR "recruiting email" -site:${domain}`,
+  ];
 
   const urls = new Set<string>();
   const emails = new Set<string>();
 
-  try {
-    const res = await fetch(url);
-    const data = await res.json();
+  await Promise.all(queries.map(async (query) => {
+    try {
+      const url = `https://serpapi.com/search.json?engine=google&q=${encodeURIComponent(query)}&api_key=${SERPAPI_KEY}&num=8`;
+      const res = await fetch(url);
+      const data = await res.json();
 
-    if (data.organic_results) {
-      data.organic_results.forEach((r: any) => {
-        if (r.link) urls.add(r.link);
-
-        const text = `${r.snippet || ''} ${r.title || ''}`;
-        const matches = text.match(EMAIL_REGEX) || [];
-        matches.forEach((e: string) => {
-          const clean = e.toLowerCase();
-          if (clean.endsWith(`@${domain}`) && isValidEmail(clean)) emails.add(clean);
+      if (data.organic_results) {
+        data.organic_results.forEach((r: any) => {
+          if (r.link) urls.add(r.link);
+          const text = `${r.snippet || ''} ${r.title || ''}`;
+          const matches = text.match(EMAIL_REGEX) || [];
+          matches.forEach((e: string) => {
+            const clean = e.toLowerCase();
+            if (clean.endsWith(`@${domain}`) && isValidEmail(clean)) emails.add(clean);
+          });
         });
-      });
+      }
+    } catch {
+      console.log(`Careers query failed: ${query}`);
     }
-  } catch {
-    console.log('Careers page search failed');
-  }
+  }));
 
   return { urls: [...urls], emails: [...emails] };
 }
@@ -116,13 +123,12 @@ async function searchCareersPage(company: string, domain: string): Promise<{ url
 async function crawlAndExtract(urls: string[], domain: string): Promise<string[]> {
   const allEmails = new Set<string>();
 
-  // Prioritise career/jobs/hr pages
   const prioritised = [
     ...urls.filter(u => /career|job|recruit|hr|people|talent|hiring/i.test(u)),
     ...urls.filter(u => !/career|job|recruit|hr|people|talent|hiring/i.test(u)),
   ];
 
-  const crawlPromises = prioritised.slice(0, 6).map(async (url) => {
+  await Promise.all(prioritised.slice(0, 6).map(async (url) => {
     try {
       const res = await fetch(url, {
         headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
@@ -131,19 +137,17 @@ async function crawlAndExtract(urls: string[], domain: string): Promise<string[]
       if (!res.ok) return;
 
       const html = await res.text();
-      const matches = html.match(EMAIL_REGEX) || [];
-      matches.forEach(email => {
+      (html.match(EMAIL_REGEX) || []).forEach(email => {
         const clean = email.toLowerCase();
         if (clean.endsWith(`@${domain}`) && isValidEmail(clean)) allEmails.add(clean);
       });
     } catch {}
-  });
+  }));
 
-  await Promise.all(crawlPromises);
   return [...allEmails];
 }
 
-// ─── Step 5: Filter, rank, dedupe ─────────────────────────────────────────────
+// ─── Step 5: Filter and rank ──────────────────────────────────────────────────
 function filterAndRankEmails(emails: string[], domain: string): string[] {
   const valid = emails.filter(e =>
     isValidEmail(e) &&
@@ -152,17 +156,24 @@ function filterAndRankEmails(emails: string[], domain: string): string[] {
     !NON_HR_ROLES.some(p => e.startsWith(p) || e.includes(`${p}@`))
   );
 
-  // Tier 1: exact HR keywords in local part
   const tier1 = valid.filter(e => {
     const local = e.split('@')[0];
     return HR_KEYWORDS.some(k => local === k || local.startsWith(k) || local.endsWith(k));
   });
 
-  // Tier 2: everything else (personal name emails like john.smith@ — still valuable)
   const tier2 = valid.filter(e => !tier1.includes(e));
 
-  // Dedupe and cap at 10
   return [...new Set([...tier1, ...tier2])].slice(0, 10);
+}
+
+// ─── Step 5b: HR permutation fallback ────────────────────────────────────────
+function generateHRPermutations(domain: string): string[] {
+  const prefixes = [
+    'hr', 'careers', 'jobs', 'recruit', 'recruiting', 'recruitment',
+    'talent', 'hiring', 'people', 'join', 'apply',
+    'hr-team', 'talent-acquisition', 'people-team',
+  ];
+  return prefixes.map(p => `${p}@${domain}`);
 }
 
 // ─── Step 6: SMTP Verify ──────────────────────────────────────────────────────
@@ -175,7 +186,6 @@ async function getMxHost(domain: string): Promise<string | null> {
   } catch { return null; }
 }
 
-// Detect catch-all servers (Google, Microsoft) — verifying against these is pointless
 function isCatchAllMx(mxHost: string): boolean {
   const catchAllProviders = [
     'google.com', 'googlemail.com', 'outlook.com', 'hotmail.com',
@@ -216,7 +226,7 @@ function trySmtpPort(email: string, mxHost: string, port: number): Promise<'vali
           socket.destroy();
           if (line.startsWith('250') || line.startsWith('251')) resolve('valid');
           else if (line.startsWith('550') || line.startsWith('551') || line.startsWith('553')) resolve('invalid');
-          else resolve('valid'); // 4xx greylisting = assume valid
+          else resolve('valid');
         }
       }
     });
@@ -238,13 +248,11 @@ async function verifyEmails(emails: string[], domain: string): Promise<{ verifie
     return { verified: emails, smtpVerified: false };
   }
 
-  // Skip SMTP entirely for catch-all providers — it tells us nothing
   if (isCatchAllMx(mxHost)) {
     console.log(`Catch-all MX detected (${mxHost}) — skipping SMTP, trusting filter`);
     return { verified: emails, smtpVerified: false };
   }
 
-  // Probe one email first to detect port blocking before burning time on all
   const probe25 = await trySmtpPort(emails[0], mxHost, 25);
   const probe587 = probe25 === 'blocked' ? await trySmtpPort(emails[0], mxHost, 587) : probe25;
 
@@ -299,15 +307,15 @@ export const handler: APIGatewayProxyHandler = async (event) => {
 
     console.log(`Searching: ${company}`);
 
-    // Step 1 — domain (1 SerpApi call)
+    // Step 1 — domain
     const domain = await getCompanyDomain(company);
     console.log(`Domain: ${domain}`);
 
-    // Step 2 — HR-targeted search (1 SerpApi call)
+    // Step 2 — HR-targeted search
     const { urls: hrUrls, emails: hrEmails } = await searchHREmails(company, domain);
     console.log(`HR search: ${hrEmails.length} emails, ${hrUrls.length} URLs`);
 
-    // Step 3 — if HR search found < 2 emails, fire careers page search (1 more call)
+    // Step 3 — careers search if HR found < 2
     let extraUrls: string[] = [];
     let extraEmails: string[] = [];
     if (hrEmails.length < 2) {
@@ -317,17 +325,24 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       console.log(`Careers search: ${extraEmails.length} emails, ${extraUrls.length} URLs`);
     }
 
-    // Step 4 — crawl pages in parallel
+    // Step 4 — crawl pages
     const allUrls = [...new Set([...hrUrls, ...extraUrls])];
     const crawledEmails = await crawlAndExtract(allUrls, domain);
     console.log(`Crawled: ${crawledEmails.length}`);
 
     // Step 5 — merge, filter, rank
     const allEmails = [...new Set([...hrEmails, ...extraEmails, ...crawledEmails])];
-    const finalEmails = filterAndRankEmails(allEmails, domain);
+    let finalEmails = filterAndRankEmails(allEmails, domain);
     console.log(`After filter: ${finalEmails.length}`);
 
-    // Step 6 — SMTP verify (skips catch-all providers like Google/Microsoft)
+    // Step 5b — permutation fallback if nothing found
+    if (finalEmails.length === 0) {
+      console.log('No emails found — using HR permutations as fallback');
+      finalEmails = generateHRPermutations(domain);
+      console.log(`Generated ${finalEmails.length} permutations`);
+    }
+
+    // Step 6 — SMTP verify
     const { verified, smtpVerified } = await verifyEmails(finalEmails, domain);
     console.log(`Final: ${verified.length} (smtpVerified: ${smtpVerified})`);
 
