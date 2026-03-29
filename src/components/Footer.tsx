@@ -1,5 +1,4 @@
 import { Link } from 'react-router-dom';
-import { Rocket } from 'lucide-react'; // Removed the broken brand imports
 
 export function Footer() {
   const currentYear = new Date().getFullYear();

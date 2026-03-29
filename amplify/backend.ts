@@ -4,14 +4,18 @@ import { data } from './data/resource';
 import { emailDiscovery } from './functions/emailDiscovery/resource';
 import { gmailAuth } from './functions/gmailAuth/resource'; 
 import { sendEmail } from './functions/sendEmail/resource';
+import { generateEmail } from './functions/generateEmail/resource';
 import { RestApi, LambdaIntegration, Cors, GatewayResponse, ResponseType } from 'aws-cdk-lib/aws-apigateway';
+import { Secret } from 'aws-cdk-lib/aws-secretsmanager';
+import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 
 const backend = defineBackend({
   auth,
   data,
   emailDiscovery,
   gmailAuth,
-  sendEmail, // <-- Added to backend
+  sendEmail,
+  generateEmail,
 });
 
 // ─── 1. Give Lambdas access to the Database ───────────────────────────────────
@@ -34,6 +38,11 @@ backend.sendEmail.addEnvironment(
   backend.data.resources.tables.UserCredentials.tableName
 );
 
+// Generate Email Lambda: Gemini API key
+backend.generateEmail.addEnvironment(
+  'GEMINI_API_KEY',
+  process.env.GEMINI_API_KEY || ''
+);
 
 // ─── 2. Setup API Gateway ─────────────────────────────────────────────────────
 const apiStack = backend.createStack('CruitorApiStack');
@@ -65,32 +74,25 @@ new GatewayResponse(apiStack, 'CorsDefault5xx', {
   },
 });
 
-
 // ─── 3. Define API Routes ─────────────────────────────────────────────────────
 
-// Route A: Email Discovery Scraper (/search-company)
-const searchIntegration = new LambdaIntegration(
-  backend.emailDiscovery.resources.lambda
-);
+// Route A: Email Discovery (/search-company)
 const searchRoute = api.root.addResource('search-company');
-searchRoute.addMethod('POST', searchIntegration);
+searchRoute.addMethod('POST', new LambdaIntegration(backend.emailDiscovery.resources.lambda));
 
 // Route B: Gmail Auth Callback (/auth-gmail)
-const authIntegration = new LambdaIntegration(
-  backend.gmailAuth.resources.lambda
-);
 const authRoute = api.root.addResource('auth-gmail');
-authRoute.addMethod('POST', authIntegration);
+authRoute.addMethod('POST', new LambdaIntegration(backend.gmailAuth.resources.lambda));
 
-// Route C: Send Email with Attachment (/send-email) <-- Added new route
-const sendEmailIntegration = new LambdaIntegration(
-  backend.sendEmail.resources.lambda
-);
+// Route C: Send Email (/send-email)
 const sendEmailRoute = api.root.addResource('send-email');
-sendEmailRoute.addMethod('POST', sendEmailIntegration);
+sendEmailRoute.addMethod('POST', new LambdaIntegration(backend.sendEmail.resources.lambda));
 
+// Route D: AI Email Generation (/generate-email)
+const generateEmailRoute = api.root.addResource('generate-email');
+generateEmailRoute.addMethod('POST', new LambdaIntegration(backend.generateEmail.resources.lambda));
 
-// ─── 4. Output the API URL to the Frontend ────────────────────────────────────
+// ─── 4. Output the API URL ────────────────────────────────────────────────────
 backend.addOutput({
   custom: {
     apiEndpoint: api.url,
