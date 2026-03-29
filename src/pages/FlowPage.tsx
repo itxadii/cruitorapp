@@ -24,19 +24,19 @@ const TEMPLATES = [
   {
     id: 'startup',
     name: 'Startup',
-    subject: (comp: string) => `Engineer Who Ships — Interested in ${comp}`,
+    subject: (comp: string) => `Engineer Who Ships - Interested in ${comp}`,
     body: (comp: string, name: string = '[Your Name]') => `Hi ${comp} Team,\n\nI build things and ship them. I've taken projects from zero to production — handling architecture decisions, debugging production fires, and iterating fast based on real feedback.\n\nI'm not looking for a job description to fit into. I'm looking for a team where I can contribute meaningfully from day one. ${comp} feels like that place.\n\nResume attached. Would love a quick chat if you're open to it.\n\nThanks,\n${name}`
   },
   {
     id: 'fresher',
     name: 'Fresher',
-    subject: (comp: string) => `Fresher Engineer — Keen to Grow with ${comp}`,
+    subject: (comp: string) => `Fresher Engineer - Keen to Grow with ${comp}`,
     body: (comp: string, name: string = '[Your Name]') => `Hi,\n\nI'm a recent Computer Science graduate actively looking for my first professional engineering role. While I'm early in my career, I've spent the past year building real projects — working with cloud infrastructure, APIs, and modern web stacks outside of coursework.\n\nI'm a fast learner who takes ownership seriously, and I'm genuinely excited about the work ${comp} does.\n\nI've attached my resume. I'd be grateful for any opportunity to be considered, even for internship or junior positions.\n\nThank you,\n${name}`
   },
   {
     id: 'follow_up',
     name: 'Follow-Up',
-    subject: (comp: string) => `Following Up — Interest in ${comp}`,
+    subject: (comp: string) => `Following Up - Interest in ${comp}`,
     body: (comp: string, name: string = '[Your Name]') => `Hi,\n\nI wanted to follow up on my earlier message regarding opportunities at ${comp}. I understand you receive a high volume of outreach, so I'll keep this brief.\n\nI remain very interested in joining your team and am confident I can add value quickly. My resume is attached again for easy reference.\n\nIf there's a better time or person to reach out to, I'm happy to redirect.\n\nThanks again for your time.\n\nBest,\n${name}`
   }
 ];

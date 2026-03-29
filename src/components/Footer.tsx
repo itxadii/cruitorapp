@@ -11,9 +11,9 @@ export function Footer() {
         {/* Column 1: Brand & Mission */}
         <div className="col-span-1 md:col-span-2">
           <Link to="/" className="flex items-center gap-2 mb-6 group">
-            <div className="w-10 h-10 bg-[#8e3afc] rounded-xl flex items-center justify-center group-hover:bg-[#7a2edb] transition-colors shadow-lg shadow-[#8e3afc]/20">
-              <Rocket size={20} className="text-white" />
-            </div>
+            <div className="w-10 h-10 rounded-full overflow-hidden relative z-10">
+                <img src="/cruitor.png" alt="Cruitor Logo" className="w-full h-full object-cover" />
+              </div>
             <span className="text-2xl font-black text-white tracking-tight font-['Merriweather']">
               Cruitor<span className="text-[#8e3afc]">.com</span>
             </span>

@@ -149,7 +149,7 @@ export function Login() {
                 <button
                   type="button"
                   onClick={() => { setStep('forgot'); setError(''); setResetEmail(form.email) }}
-                  className="text-right text-sm font-bold text-[#8e3afc] hover:text-[#7a2edb] transition-colors -mt-3"
+                  className="cursor-pointer text-right text-sm font-bold text-[#8e3afc] hover:text-[#7a2edb] transition-colors -mt-3"
                 >
                   Forgot password?
                 </button>
@@ -159,14 +159,14 @@ export function Login() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="mt-2 rounded-2xl bg-[#8e3afc] px-6 py-4 text-base font-bold text-white shadow-xl shadow-[#8e3afc]/25 hover:bg-[#7a2edb] hover:-translate-y-0.5 transition-all duration-300 disabled:opacity-60 disabled:hover:translate-y-0 font-['Merriweather']"
+                  className="cursor-pointer mt-2 rounded-2xl bg-[#8e3afc] px-6 py-4 text-base font-bold text-white shadow-xl shadow-[#8e3afc]/25 hover:bg-[#7a2edb] hover:-translate-y-0.5 transition-all duration-300 disabled:opacity-60 disabled:hover:translate-y-0 font-['Merriweather']"
                 >
                   {loading ? 'Signing in...' : 'Sign in'}
                 </button>
 
                 <p className="text-center text-sm text-gray-600 font-['Lato'] mt-2">
                   Don't have an account?{' '}
-                  <Link to="/signup" className="font-bold text-[#8e3afc] hover:text-[#7a2edb] transition-colors">
+                  <Link to="/signup" className="cursor-pointer font-bold text-[#8e3afc] hover:text-[#7a2edb] transition-colors">
                     Sign up
                   </Link>
                 </p>
@@ -198,7 +198,7 @@ export function Login() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="mt-2 rounded-2xl bg-[#8e3afc] px-6 py-4 text-base font-bold text-white shadow-xl shadow-[#8e3afc]/25 hover:bg-[#7a2edb] hover:-translate-y-0.5 transition-all duration-300 disabled:opacity-60 disabled:hover:translate-y-0 font-['Lato']"
+                  className="cursor-pointer mt-2 rounded-2xl bg-[#8e3afc] px-6 py-4 text-base font-bold text-white shadow-xl shadow-[#8e3afc]/25 hover:bg-[#7a2edb] hover:-translate-y-0.5 transition-all duration-300 disabled:opacity-60 disabled:hover:translate-y-0 font-['Lato']"
                 >
                   {loading ? 'Sending...' : 'Send reset code'}
                 </button>
@@ -207,7 +207,7 @@ export function Login() {
                   <button
                     type="button"
                     onClick={() => { setStep('login'); setError('') }}
-                    className="text-center text-sm font-medium text-gray-400 hover:text-gray-600 transition-colors font-['Lato'] flex items-center justify-center gap-1"
+                    className="cursor-pointer text-center text-sm font-medium text-gray-400 hover:text-gray-600 transition-colors font-['Lato'] flex items-center justify-center gap-1"
                   >
                     ← Back to sign in
                   </button>
@@ -274,7 +274,7 @@ export function Login() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="mt-2 rounded-2xl bg-[#8e3afc] px-6 py-4 text-base font-bold text-white shadow-xl shadow-[#8e3afc]/25 hover:bg-[#7a2edb] hover:-translate-y-0.5 transition-all duration-300 disabled:opacity-60 disabled:hover:translate-y-0 font-['Montserrat']"
+                  className="cursor-pointer mt-2 rounded-2xl bg-[#8e3afc] px-6 py-4 text-base font-bold text-white shadow-xl shadow-[#8e3afc]/25 hover:bg-[#7a2edb] hover:-translate-y-0.5 transition-all duration-300 disabled:opacity-60 disabled:hover:translate-y-0 font-['Montserrat']"
                 >
                   {loading ? 'Resetting...' : 'Reset password'}
                 </button>
@@ -283,7 +283,7 @@ export function Login() {
                   <button
                     type="button"
                     onClick={() => { setStep('forgot'); setError('') }}
-                    className="text-center text-sm font-medium text-gray-400 hover:text-gray-600 transition-colors font-['Lato'] flex items-center justify-center gap-1"
+                    className="cursor-pointer text-center text-sm font-medium text-gray-400 hover:text-gray-600 transition-colors font-['Lato'] flex items-center justify-center gap-1"
                   >
                     ← Back
                   </button>
